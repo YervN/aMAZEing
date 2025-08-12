@@ -57,6 +57,20 @@
     <div class="main">
       <div class="canvas-wrap card">
         <canvas id="mazeCanvas" width="720" height="720" tabindex="0"></canvas>
+          <div id="onscreen-controls" style="margin-top:18px;display:flex;flex-direction:column;align-items:center;gap:8px;">
+            <div style="display:flex;gap:10px;">
+              <button id="btn-up" aria-label="Up" style="width:56px;height:56px;font-size:28px;">▲</button>
+            </div>
+            <div style="display:flex;gap:10px;">
+              <button id="btn-left" aria-label="Left" style="width:56px;height:56px;font-size:28px;">◀</button>
+              <button id="btn-down" aria-label="Down" style="width:56px;height:56px;font-size:28px;">▼</button>
+              <button id="btn-right" aria-label="Right" style="width:56px;height:56px;font-size:28px;">▶</button>
+            </div>
+            <div style="display:flex;gap:10px;margin-top:8px;">
+              <button id="btn-scrollup" aria-label="Scroll Up" style="width:110px;height:40px;font-size:16px;">Scroll Up</button>
+              <button id="btn-scrolldown" aria-label="Scroll Down" style="width:110px;height:40px;font-size:16px;">Scroll Down</button>
+            </div>
+          </div>
       </div>
 
       <div class="sidebar">
@@ -361,6 +375,22 @@
         }
       }
     });
+
+      // On-screen button controls
+      document.getElementById('btn-up').onclick = ()=>tryMove(0,-1);
+      document.getElementById('btn-down').onclick = ()=>tryMove(0,1);
+      document.getElementById('btn-left').onclick = ()=>tryMove(-1,0);
+      document.getElementById('btn-right').onclick = ()=>tryMove(1,0);
+      document.getElementById('btn-scrollup').onclick = ()=>tryMove(0,-1);
+      document.getElementById('btn-scrolldown').onclick = ()=>tryMove(0,1);
+
+      // Mouse wheel scroll controls
+      canvas.addEventListener('wheel', function(e) {
+        if(!finished){
+          if(e.deltaY < 0) tryMove(0,-1); // scroll up
+          else if(e.deltaY > 0) tryMove(0,1); // scroll down
+        }
+      });
 
     // replay
     replayBtn.addEventListener('click', ()=>{
