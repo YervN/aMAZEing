@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Custom QR Code Generator</title>
+  <style>
+    :root{
+      --bg:#0f1724; --card:#0b1220; --muted:#9aa4b2; --accent:#7dd3fc;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family:Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;color:#e6eef6;background:linear-gradient(180deg,#071026 0%, #071829 100%);}
+    .app{max-width:980px;margin:36px auto;padding:20px;border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));box-shadow:0 6px 30px rgba(3,7,18,0.6);}
+    header{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+    header h1{font-size:20px;margin:0}
+    .grid{display:grid;grid-template-columns:1fr 420px;gap:18px;align-items:start}
+
+    /* Controls */
+    .controls{padding:14px;background:rgba(255,255,255,0.02);border-radius:10px}
+    label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+    input[type=text], textarea, select{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit;font-size:14px}
+    .row{display:flex;gap:10px}
+    .small{flex:1}
+    .color-pair{display:flex;gap:8px;align-items:center}
+    .color-pair input[type=color]{height:40px;width:56px;border:0;padding:0;background:transparent}
+    .actions{display:flex;gap:8px;margin-top:12px}
+    button{padding:10px 14px;border-radius:10px;border:0;background:var(--accent);color:#022;cursor:pointer;font-weight:600}
+    button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted);}
+
+    /* Preview */
+    .preview-wrap{display:flex;flex-direction:column;align-items:center;gap:12px}
+    .preview-card{width:100%;height:0;padding-bottom:100%;position:relative;background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));border-radius:12px;border:1px solid rgba(255,255,255,0.03);display:flex;align-items:center;justify-content:center}
+    .preview{position:absolute;inset:12px;border-radius:8px;background:white;display:flex;align-items:center;justify-content:center}
+    .preview img{max-width:100%;max-height:100%;display:block}
+    .meta{display:flex;gap:8px;align-items:center}
+    .hint{font-size:12px;color:var(--muted)}
+
+    /* Responsive */
+    @media (max-width:880px){.grid{grid-template-columns:1fr;}.preview-card{order:-1}}
+  </style>
+</head>
+<body>
+  <main class="app" role="main">
+    <header>
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" aria-hidden><rect width="24" height="24" rx="6" fill="url(#g)"/></svg>
+      <h1>Custom QR Code Generator</h1>
+    </header>
+
+    <section class="grid">
+      <form id="controls" class="controls" onsubmit="return false;">
+        <label for="text">Text or URL</label>
+        <textarea id="text" rows="3" placeholder="Paste URL or type text here">https://example.com</textarea>
+
+        <div style="margin-top:10px" class="row">
+          <div class="small">
+            <label for="size">Size (px)</label>
+            <select id="size">
+              <option value="256">256×256</option>
+              <option value="384">384×384</option>
+              <option value="512" selected>512×512</option>
+              <option value="768">768×768</option>
+            </select>
+          </div>
+          <div style="width:120px">
+            <label for="ecc">Error level</label>
+            <select id="ecc">
+              <option value="L">L (low)</option>
+              <option value="M" selected>M (medium)</option>
+              <option value="Q">Q (quartile)</option>
+              <option value="H">H (high)</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="margin-top:12px" class="color-pair">
+          <div style="flex:1">
+            <label for="fg">Foreground</label>
+            <input id="fg" type="color" value="#000000" title="Foreground color">
+          </div>
+          <div style="flex:1">
+            <label for="bg">Background</label>
+            <input id="bg" type="color" value="#ffffff" title="Background color">
+          </div>
+        </div>
+
+        <div class="actions">
+          <button id="generate">Generate</button>
+          <button id="download" class="ghost" type="button">Download PNG</button>
+          <button id="reset" class="ghost" type="button">Reset</button>
+        </div>
+
+        <p class="hint" style="margin-top:12px">Tip: keep background light for best scanning. Large preview updates after generation.</p>
+      </form>
+
+      <div class="preview-wrap">
+        <div class="preview-card">
+          <div class="preview" id="preview">
+            <img id="qrimg" alt="QR preview" src="" />
+          </div>
+        </div>
+        <div class="meta">
+          <span class="hint" id="status">No QR generated yet</span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // Simple single-file SPA using qrserver.com API. We fetch the generated PNG as a blob so user can download it.
+    const textEl = document.getElementById('text');
+    const sizeEl = document.getElementById('size');
+    const eccEl = document.getElementById('ecc');
+    const fgEl = document.getElementById('fg');
+    const bgEl = document.getElementById('bg');
+    const generateBtn = document.getElementById('generate');
+    const downloadBtn = document.getElementById('download');
+    const resetBtn = document.getElementById('reset');
+    const qrImg = document.getElementById('qrimg');
+    const status = document.getElementById('status');
+
+    let lastBlobUrl = null;
+
+    function hexNoHash(hex){return hex.replace('#','');}
+
+    function buildApiUrl({data,size,ecc,fg,bg}){
+      const base = 'https://api.qrserver.com/v1/create-qr-code/';
+      const params = new URLSearchParams();
+      params.set('data', data);
+      params.set('size', size + 'x' + size);
+      params.set('qzone','1'); // quiet zone
+      params.set('format','png');
+      // ecc mapping: L/M/Q/H
+      params.set('ecc', ecc || 'M');
+      if(fg) params.set('color', hexNoHash(fg));
+      if(bg) params.set('bgcolor', hexNoHash(bg));
+      return base + '?' + params.toString();
+    }
+
+    async function generate(){
+      const data = (textEl.value || '').trim();
+      if(!data){status.textContent = 'Enter text or URL first.'; return}
+      status.textContent = 'Generating...';
+      const size = parseInt(sizeEl.value,10) || 512;
+      const ecc = eccEl.value || 'M';
+      const fg = fgEl.value || '#000000';
+      const bg = bgEl.value || '#ffffff';
+
+      const url = buildApiUrl({data:encodeURIComponent(data),size,ecc,fg:bg?hexNoHash(fg):null,bg:bg?hexNoHash(bg):null});
+      // Fetch as blob so we can offer a download that works cross-origin
+      try{
+        const res = await fetch(url, {mode:'cors'});
+        if(!res.ok) throw new Error('QR API error: '+res.status);
+        const blob = await res.blob();
+        if(lastBlobUrl){URL.revokeObjectURL(lastBlobUrl); lastBlobUrl = null}
+        const blobUrl = URL.createObjectURL(blob);
+        lastBlobUrl = blobUrl;
+        qrImg.src = blobUrl;
+        qrImg.width = size; qrImg.height = size;
+        status.textContent = `Size: ${size}×${size} • ECC: ${ecc}`;
+        downloadBtn.disabled = false;
+        downloadBtn.onclick = () => downloadBlob(blob, makeFilename(data));
+      }catch(err){
+        console.error(err);
+        status.textContent = 'Failed to generate QR — try again.';
+        downloadBtn.disabled = true;
+      }
+    }
+
+    function makeFilename(data){
+      const safe = data.replace(/[^a-z0-9\-_.]/gi,'_').slice(0,40) || 'qr';
+      return safe + '.png';
+    }
+
+    async function downloadBlob(blob, filename){
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url), 5000);
+    }
+
+    generateBtn.addEventListener('click', (e)=>{
+      e.preventDefault();
+      generate();
+    });
+
+    resetBtn.addEventListener('click', ()=>{
+      textEl.value = 'https://example.com';
+      sizeEl.value = '512';
+      eccEl.value = 'M';
+      fgEl.value = '#000000';
+      bgEl.value = '#ffffff';
+      qrImg.src = '';
+      status.textContent = 'No QR generated yet';
+      if(lastBlobUrl){URL.revokeObjectURL(lastBlobUrl); lastBlobUrl = null}
+    });
+
+    // generate initial on load
+    window.addEventListener('load', ()=>{
+      // small delay so UI paints
+      setTimeout(()=>generate(), 120);
+    });
+
+    // Accessibility: allow Enter to generate from textarea with Ctrl+Enter
+    textEl.addEventListener('keydown', (ev)=>{
+      if((ev.ctrlKey || ev.metaKey) && ev.key === 'Enter') generate();
+    });
+
+  </script>
+</body>
+</html>
