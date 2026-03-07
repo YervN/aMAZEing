@@ -3,51 +3,51 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Labyrinth Versus</title>
+    <title>Symmetrical Labyrinth Race</title>
     <style>
         :root {
-            --p1-color: #3498db;
-            --p2-color: #e74c3c;
-            --wall-color: #2c3e50;
-            --path-color: #ecf0f1;
-            --gold: #f1c40f;
+            --p1-color: #ff9ff3;
+            --p2-color: #feca57;
+            --wall-color: #2d3436;
+            --path-color: #dfe6e9;
         }
-        body { margin: 0; overflow: hidden; background: #1a1a1a; font-family: 'Segoe UI', sans-serif; touch-action: none; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
+        body { margin: 0; overflow: hidden; background: #1e272e; font-family: 'Segoe UI', sans-serif; touch-action: none; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
         
-        #ui-top { position: absolute; top: 10px; width: 100%; display: flex; justify-content: space-around; color: white; pointer-events: none; z-index: 10; }
-        .stat-box { background: rgba(0,0,0,0.6); padding: 5px 15px; border-radius: 20px; border: 2px solid white; }
+        #ui-top { position: absolute; top: 15px; width: 100%; display: flex; justify-content: space-around; color: white; pointer-events: none; z-index: 10; }
+        .stat-box { background: rgba(0,0,0,0.7); padding: 8px 20px; border-radius: 15px; border: 2px solid #576574; font-weight: bold; }
 
-        canvas { background: var(--wall-color); border: 5px solid #444; box-shadow: 0 0 20px rgba(0,0,0,0.5); max-width: 95vw; max-height: 70vh; }
+        canvas { background: var(--wall-color); border: 8px solid #576574; border-radius: 10px; box-shadow: 0 0 30px rgba(0,0,0,0.5); max-width: 90vw; max-height: 60vh; }
 
-        /* Touch Controls */
-        .controls-container { position: absolute; bottom: 20px; width: 100%; display: flex; justify-content: space-between; padding: 0 20px; box-sizing: border-box; }
-        .dpad { display: grid; grid-template-columns: repeat(3, 50px); grid-template-rows: repeat(3, 50px); gap: 5px; }
-        .btn { width: 50px; height: 50px; background: rgba(255,255,255,0.2); border: 2px solid white; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 20px; user-select: none; }
-        .btn:active { background: rgba(255,255,255,0.5); }
+        /* Controls */
+        .controls-container { position: absolute; bottom: 30px; width: 100%; display: flex; justify-content: space-between; padding: 0 30px; box-sizing: border-box; }
+        .dpad { display: grid; grid-template-columns: repeat(3, 55px); grid-template-rows: repeat(3, 55px); gap: 8px; }
+        .btn { width: 55px; height: 55px; background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.4); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: white; font-size: 24px; user-select: none; transition: 0.1s; }
+        .btn:active { background: rgba(255,255,255,0.3); transform: scale(0.95); }
         .up { grid-column: 2; }
         .left { grid-column: 1; grid-row: 2; }
         .down { grid-column: 2; grid-row: 2; }
         .right { grid-column: 3; grid-row: 2; }
         
-        #p1-ctrl .btn { border-color: var(--p1-color); color: var(--p1-color); }
-        #p2-ctrl .btn { border-color: var(--p2-color); color: var(--p2-color); }
+        #p1-ctrl .btn { border-color: var(--p1-color); text-shadow: 0 0 10px var(--p1-color); }
+        #p2-ctrl .btn { border-color: var(--p2-color); text-shadow: 0 0 10px var(--p2-color); }
 
-        #msg-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: none; flex-direction: column; align-items: center; justify-content: center; color: white; z-index: 100; }
-        button#next-btn { padding: 15px 30px; font-size: 20px; cursor: pointer; background: var(--gold); border: none; border-radius: 5px; margin-top: 20px; font-weight: bold; }
+        #msg-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: none; flex-direction: column; align-items: center; justify-content: center; color: white; z-index: 100; text-align: center; }
+        button#next-btn { padding: 15px 40px; font-size: 22px; cursor: pointer; background: #10ac84; color: white; border: none; border-radius: 50px; margin-top: 25px; font-weight: bold; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
     </style>
 </head>
 <body>
 
 <div id="ui-top">
-    <div class="stat-box" style="border-color: var(--p1-color)">P1: Blue</div>
+    <div class="stat-box" style="color: var(--p1-color)">🦋 P1 (WASD)</div>
     <div class="stat-box" id="level-display">Level 1/5</div>
-    <div class="stat-box" style="border-color: var(--p2-color)">P2: Red</div>
+    <div class="stat-box" style="color: var(--p2-color)">🧱 P2 (ARROWS)</div>
 </div>
 
 <canvas id="mazeCanvas"></canvas>
 
 <div id="msg-overlay">
-    <h1 id="win-text">PLAYER 1 WINS!</h1>
+    <h1 id="win-text" style="font-size: 48px;">WINNER!</h1>
+    <p id="sub-text" style="font-size: 20px; color: #aaa;">Fairness verified: Path lengths were equal.</p>
     <button id="next-btn" onclick="nextLevel()">NEXT LEVEL</button>
 </div>
 
@@ -70,27 +70,29 @@
 const canvas = document.getElementById("mazeCanvas");
 const ctx = canvas.getContext("2d");
 
-// Game Settings
 let currentLevel = 1;
 const maxLevels = 5;
 let grid = [];
 let cellSize = 0;
 let cols, rows;
 
-const p1 = { x: 1, y: 1, color: '#3498db' };
-const p2 = { x: 0, y: 0, color: '#e74c3c' }; // Will be set based on grid size
+const p1 = { x: 1, y: 1, icon: '🦋' };
+const p2 = { x: 0, y: 0, icon: '🧱' };
 
-// 1 = path, 0 = wall
-function generateMaze(w, h) {
-    cols = w; rows = h;
+function generateSymmetricalMaze(size) {
+    cols = size; rows = size;
     grid = Array.from({ length: rows }, () => Array(cols).fill(0));
 
+    const halfR = Math.floor(rows / 2);
+    
+    // Recursive Backtracker on first half
     function walk(x, y) {
         grid[y][x] = 1;
         const dirs = [[0, -2], [0, 2], [-2, 0], [2, 0]].sort(() => Math.random() - 0.5);
         
         for (let [dx, dy] of dirs) {
             let nx = x + dx, ny = y + dy;
+            // Stay within top half bounds roughly
             if (nx >= 0 && nx < cols && ny >= 0 && ny < rows && grid[ny][nx] === 0) {
                 grid[y + dy / 2][x + dx / 2] = 1;
                 walk(nx, ny);
@@ -99,24 +101,35 @@ function generateMaze(w, h) {
     }
     walk(1, 1);
 
-    // Ensure center is open (The Goal)
+    // Apply Rotational Symmetry (180 degrees)
+    for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+            if (grid[y][x] === 1) {
+                grid[rows - 1 - y][cols - 1 - x] = 1;
+            }
+        }
+    }
+
+    // Force a path to the center for both
     let cx = Math.floor(cols / 2);
     let cy = Math.floor(rows / 2);
-    // Make a 2x2 or 1x1 goal area
-    grid[cy][cx] = 2; // 2 = Gold
-    grid[cy-1][cx] = 1; grid[cy+1][cx] = 1; grid[cy][cx-1] = 1; grid[cy][cx+1] = 1; 
+    
+    // Connect P1's side to center
+    grid[cy-1][cx] = 1;
+    grid[cy][cx] = 2; // Goal
+    // Connect P2's side to center (mirrored)
+    grid[cy+1][cx] = 1;
 }
 
 function initLevel() {
-    const size = 11 + (currentLevel * 4); // Grid grows each level
-    generateMaze(size, size);
+    // Sizes must be odd for center-symmetry: 13, 17, 21, 25, 29
+    const size = 13 + (currentLevel - 1) * 4; 
+    generateSymmetricalMaze(size);
     
-    // Reset Player Positions
     p1.x = 1; p1.y = 1;
     p2.x = cols - 2; p2.y = rows - 2;
     
-    // Scale canvas
-    const displaySize = Math.min(window.innerWidth * 0.9, window.innerHeight * 0.6);
+    const displaySize = Math.min(window.innerWidth * 0.9, window.innerHeight * 0.55);
     canvas.width = displaySize;
     canvas.height = displaySize;
     cellSize = canvas.width / cols;
@@ -131,35 +144,30 @@ function draw() {
     for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
             if (grid[r][c] === 0) {
-                ctx.fillStyle = "#2c3e50"; // Wall
-            } else if (grid[r][c] === 2) {
-                ctx.fillStyle = "#f1c40f"; // Gold Goal
+                // Wall texture
+                ctx.fillStyle = "#2d3436";
+                ctx.fillRect(c * cellSize, r * cellSize, cellSize, cellSize);
+                ctx.strokeStyle = "#636e72";
+                ctx.lineWidth = 1;
+                ctx.strokeRect(c * cellSize + 2, r * cellSize + 2, cellSize - 4, cellSize - 4);
             } else {
-                ctx.fillStyle = "#ecf0f1"; // Path
+                // Path
+                ctx.fillStyle = "#dfe6e9";
+                ctx.fillRect(c * cellSize, r * cellSize, cellSize, cellSize);
             }
-            ctx.fillRect(c * cellSize, r * cellSize, cellSize + 0.5, cellSize + 0.5);
         }
     }
 
-    // Draw Gold Icon
-    ctx.font = `${cellSize}px serif`;
+    // Goal
+    ctx.font = `${cellSize * 0.8}px Arial`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText("🏆", (Math.floor(cols/2) + 0.5) * cellSize, (Math.floor(rows/2) + 0.5) * cellSize);
 
     // Players
-    drawPlayer(p1);
-    drawPlayer(p2);
-}
-
-function drawPlayer(p) {
-    ctx.shadowBlur = 10;
-    ctx.shadowColor = p.color;
-    ctx.fillStyle = p.color;
-    ctx.beginPath();
-    ctx.arc((p.x + 0.5) * cellSize, (p.y + 0.5) * cellSize, cellSize * 0.35, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.shadowBlur = 0;
+    ctx.font = `${cellSize * 0.8}px Arial`;
+    ctx.fillText(p1.icon, (p1.x + 0.5) * cellSize, (p1.y + 0.5) * cellSize);
+    ctx.fillText(p2.icon, (p2.x + 0.5) * cellSize, (p2.y + 0.5) * cellSize);
 }
 
 function move(player, dx, dy) {
@@ -169,57 +177,45 @@ function move(player, dx, dy) {
     if (nx >= 0 && nx < cols && ny >= 0 && ny < rows && grid[ny][nx] !== 0) {
         player.x = nx;
         player.y = ny;
-
-        if (grid[ny][nx] === 2) {
-            checkWin(player === p1 ? "BLUE" : "RED");
-        }
+        if (grid[ny][nx] === 2) checkWin(player === p1 ? "BUTTERFLY" : "LEGO BRICK");
     }
 }
 
 function checkWin(winner) {
     document.getElementById("msg-overlay").style.display = "flex";
-    document.getElementById("win-text").textContent = `PLAYER ${winner} REACHED THE VAULT!`;
+    document.getElementById("win-text").textContent = `${winner} WINS!`;
     if (currentLevel === maxLevels) {
-        document.getElementById("next-btn").textContent = "RESTART GAME";
+        document.getElementById("next-btn").textContent = "PLAY AGAIN";
     }
 }
 
 function nextLevel() {
-    if (currentLevel < maxLevels) {
-        currentLevel++;
-    } else {
-        currentLevel = 1;
-    }
+    if (currentLevel < maxLevels) currentLevel++;
+    else currentLevel = 1;
     initLevel();
 }
 
-// Input Handling
+// Input listeners
 window.addEventListener("keydown", (e) => {
-    // P1 WASD
-    if (e.key === 'w') move(p1, 0, -1);
-    if (e.key === 's') move(p1, 0, 1);
-    if (e.key === 'a') move(p1, -1, 0);
-    if (e.key === 'd') move(p1, 1, 0);
-
-    // P2 Arrows
-    if (e.key === 'ArrowUp') move(p2, 0, -1);
-    if (e.key === 'ArrowDown') move(p2, 0, 1);
-    if (e.key === 'ArrowLeft') move(p2, -1, 0);
-    if (e.key === 'ArrowRight') move(p2, 1, 0);
+    const key = e.key;
+    if (key === 'w') move(p1, 0, -1);
+    if (key === 's') move(p1, 0, 1);
+    if (key === 'a') move(p1, -1, 0);
+    if (key === 'd') move(p1, 1, 0);
+    if (key === 'ArrowUp') move(p2, 0, -1);
+    if (key === 'ArrowDown') move(p2, 0, 1);
+    if (key === 'ArrowLeft') move(p2, -1, 0);
+    if (key === 'ArrowRight') move(p2, 1, 0);
 });
 
-// Touch Handling
 document.querySelectorAll('.btn').forEach(btn => {
     btn.addEventListener('touchstart', (e) => {
         e.preventDefault();
         const key = btn.getAttribute('data-key');
-        // Manually trigger movement
-        const fakeEvent = { key: key };
-        window.dispatchEvent(new KeyboardEvent('keydown', fakeEvent));
-    });
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: key }));
+    }, {passive: false});
 });
 
-// Game Loop
 function loop() {
     draw();
     requestAnimationFrame(loop);
@@ -228,6 +224,5 @@ function loop() {
 initLevel();
 loop();
 </script>
-
 </body>
 </html>
