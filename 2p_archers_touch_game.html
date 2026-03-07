@@ -225,8 +225,8 @@
     }
 
     function placePlayers() {
-      const p1x = state.w * 0.12;
-      const p2x = state.w * 0.88;
+      const p1x = state.w * 0.22;
+      const p2x = state.w * 0.78;
 
       if (!state.players.length) {
         state.players = [
@@ -299,7 +299,7 @@
       if (state.currentPlayer === 0 && dx < 18) dx = 18;
       if (state.currentPlayer === 1 && dx > -18) dx = -18;
 
-      const maxLen = Math.max(90, state.w * 0.23);
+      const maxLen = Math.max(110, state.w * 0.28);
       const len = Math.hypot(dx, dy) || 1;
       if (len > maxLen) {
         const scale = maxLen / len;
@@ -342,9 +342,9 @@
       const dist = Math.max(minDist, Math.hypot(dx, dy));
       const angle = Math.atan2(dy, dx);
 
-      const maxDist = Math.max(100, state.w * 0.23);
+      const maxDist = Math.max(120, state.w * 0.28);
       const power = Math.min(1, dist / maxDist);
-      const speed = 290 + power * 490;
+      const speed = 360 + power * 640;
 
       state.projectile = {
         x: anchor.x,
@@ -571,8 +571,8 @@
       const dx = state.aimPoint.x - anchor.x;
       const dy = state.aimPoint.y - anchor.y;
       const dist = Math.hypot(dx, dy);
-      const maxDist = Math.max(100, state.w * 0.23);
-      const speed = 290 + Math.min(1, dist / maxDist) * 490;
+      const maxDist = Math.max(120, state.w * 0.28);
+      const speed = 360 + Math.min(1, dist / maxDist) * 640;
       let vx = Math.cos(Math.atan2(dy, dx)) * speed;
       let vy = Math.sin(Math.atan2(dy, dx)) * speed;
       let px = anchor.x;
