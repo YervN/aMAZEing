@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Symmetrical Labyrinth</title>
+    <title>Symmetrical Labyrinth - Swapped Controls</title>
     <style>
         body { margin: 0; background: #121212; color: white; font-family: sans-serif; overflow: hidden; touch-action: none; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
         #ui { position: absolute; top: 10px; width: 100%; display: flex; justify-content: space-around; z-index: 10; }
@@ -16,7 +16,9 @@
         .btn:active { background: #555; }
         .up { grid-column: 2; } .left { grid-column: 1; grid-row: 2; } .down { grid-column: 2; grid-row: 2; } .right { grid-column: 3; grid-row: 2; }
         
+        /* P1 (Brick) uses Pink D-Pad */
         #p1-btns .btn { border-color: #ff79c6; }
+        /* P2 (Butterfly) uses Yellow D-Pad */
         #p2-btns .btn { border-color: #f1fa8c; }
         
         #overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 100; }
@@ -26,9 +28,9 @@
 <body>
 
 <div id="ui">
-    <div class="score-card" id="p1-label" style="color:#ff79c6">🦋 P1 (WASD)</div>
+    <div class="score-card" id="p1-label" style="color:#ff79c6">🧱 Brick (WASD)</div>
     <div class="score-card" id="lvl-card">Level 1/5</div>
-    <div class="score-card" id="p2-label" style="color:#f1fa8c">🧱 P2 (Arrows)</div>
+    <div class="score-card" id="p2-label" style="color:#f1fa8c">🦋 Butterfly (Arrows)</div>
 </div>
 
 <canvas id="maze"></canvas>
@@ -59,18 +61,18 @@ const ctx = canvas.getContext("2d");
 
 let level = 1;
 let size, grid, cellSize;
-const p1 = { x: 1, y: 1, icon: '🦋' };
-const p2 = { x: 0, y: 0, icon: '🧱' };
+
+// Swapped Icons: P1 is now the Brick, P2 is the Butterfly
+const p1 = { x: 1, y: 1, icon: '🧱' };
+const p2 = { x: 0, y: 0, icon: '🦋' };
 
 function buildMaze(dim) {
     size = dim;
     grid = Array.from({ length: size }, () => Array(size).fill(0));
 
-    // Carve logic (Recursive Backtracker)
     function carve(cx, cy) {
         const dirs = [[0, 1], [0, -1], [1, 0], [-1, 0]].sort(() => Math.random() - 0.5);
         grid[cy][cx] = 1;
-
         for (let [dx, dy] of dirs) {
             let nx = cx + dx * 2, ny = cy + dy * 2;
             if (nx > 0 && nx < size - 1 && ny > 0 && ny < size - 1 && grid[ny][nx] === 0) {
@@ -82,25 +84,21 @@ function buildMaze(dim) {
 
     carve(1, 1);
 
-    // Diagonal Symmetry: Mirror P1's side to P2
+    // Symmetric Mirroring
     for (let y = 0; y < size; y++) {
         for (let x = 0; x < size; x++) {
-            if (grid[y][x] === 1) {
-                grid[size - 1 - y][size - 1 - x] = 1;
-            }
+            if (grid[y][x] === 1) grid[size - 1 - y][size - 1 - x] = 1;
         }
     }
 
-    // Force Center Goal
     const mid = Math.floor(size / 2);
-    grid[mid][mid] = 2; // Goal
-    // Connect path to goal
+    grid[mid][mid] = 2; 
     grid[mid-1][mid] = 1; 
     grid[mid+1][mid] = 1;
 }
 
 function initGame() {
-    const mazeDim = 11 + (level * 4); // 15, 19, 23, 27, 31
+    const mazeDim = 11 + (level * 4);
     buildMaze(mazeDim);
     
     p1.x = 1; p1.y = 1;
@@ -117,14 +115,13 @@ function initGame() {
 
 function draw() {
     ctx.clearRect(0,0, canvas.width, canvas.height);
-    
     for(let y=0; y<size; y++){
         for(let x=0; x<size; x++){
             if(grid[y][x] === 0) {
-                ctx.fillStyle = "#282a36"; // Wall
+                ctx.fillStyle = "#282a36"; 
                 ctx.fillRect(x*cellSize, y*cellSize, cellSize, cellSize);
             } else if (grid[y][x] === 2) {
-                ctx.fillStyle = "#f1fa8c"; // Goal
+                ctx.fillStyle = "#f1fa8c"; 
                 ctx.fillRect(x*cellSize, y*cellSize, cellSize, cellSize);
                 ctx.font = `${cellSize*0.7}px Arial`;
                 ctx.textAlign = "center";
@@ -132,8 +129,6 @@ function draw() {
             }
         }
     }
-
-    // Draw Icons
     ctx.font = `${cellSize*0.8}px Arial`;
     ctx.textAlign = "center";
     ctx.fillText(p1.icon, (p1.x+0.5)*cellSize, (p1.y+0.8)*cellSize);
@@ -153,7 +148,7 @@ function move(playerID, dx, dy) {
 }
 
 function win(id) {
-    const winner = (id === 'p1') ? "BUTTERFLY" : "LEGO BRICK";
+    const winner = (id === 'p1') ? "LEGO BRICK" : "BUTTERFLY";
     document.getElementById("status").innerText = winner + " WINS!";
     document.getElementById("overlay").style.display = "flex";
 }
@@ -164,7 +159,6 @@ function startNextLevel() {
     initGame();
 }
 
-// Keyboard Listeners
 window.addEventListener("keydown", (e) => {
     switch(e.key.toLowerCase()) {
         case 'w': move('p1', 0, -1); break;
