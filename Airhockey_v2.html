@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>Touch Air Hockey - Thick Walls</title>
+<title>4-Puck Neon Hockey</title>
 <style>
-    body { margin: 0; overflow: hidden; background: #081a2a; touch-action: none; }
+    body { margin: 0; overflow: hidden; background: #050f1a; touch-action: none; }
     canvas { display: block; }
     #score {
         position: absolute;
@@ -15,8 +15,9 @@
         color: white;
         font-size: 32px;
         font-weight: bold;
-        font-family: sans-serif;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         pointer-events: none;
+        text-shadow: 0 0 10px rgba(0,255,255,0.5);
     }
 </style>
 </head>
@@ -35,187 +36,193 @@ canvas.height = window.innerHeight;
 let score1 = 0;
 let score2 = 0;
 
-// --- WALL SETTINGS ---
-const wallThickness = 20; 
-const goalWidth = canvas.width * 0.35;
-const wallColor = "#1e3a5f";
-const wallBorder = "#3498db";
+const wallThickness = 25; 
+const goalWidth = canvas.width * 0.4;
+const wallColor = "#0d1b2a";
+const wallBorder = "#00f2ff";
 
-let wallGlow = 0;
+// --- PUCK CONFIGURATION ---
+const pucks = [];
+const numPucks = 4;
 
-const puck = {
-    x: canvas.width / 2,
-    y: canvas.height / 2,
-    vx: 5,
-    vy: 5,
-    r: 20
-};
-
-const paddle1 = { x: canvas.width / 2, y: canvas.height - 120, r: 40 };
-const paddle2 = { x: canvas.width / 2, y: 120, r: 40 };
-
-function resetPuck() {
-    puck.x = canvas.width / 2;
-    puck.y = canvas.height / 2;
-    puck.vx = (Math.random() > 0.5 ? 1 : -1) * 5;
-    puck.vy = (Math.random() > 0.5 ? 1 : -1) * 5;
+function createPuck(index) {
+    return {
+        x: canvas.width / 2 + (index * 40 - 60), // Spread them out slightly
+        y: canvas.height / 2,
+        vx: (Math.random() - 0.5) * 12,
+        vy: (Math.random() - 0.5) * 12,
+        r: 18,
+        color: "#ffffff"
+    };
 }
 
-function drawCircle(x, y, r, color) {
+// Initialize 4 pucks
+for (let i = 0; i < numPucks; i++) {
+    pucks.push(createPuck(i));
+}
+
+const paddle1 = { x: canvas.width / 2, y: canvas.height - 150, r: 45 };
+const paddle2 = { x: canvas.width / 2, y: 150, r: 45 };
+
+function getRandomColor() {
+    const colors = ['#FF0055', '#00FF99', '#00D4FF', '#FFD700', '#FF00FF', '#FFFFFF'];
+    return colors[Math.floor(Math.random() * colors.length)];
+}
+
+function resetPuck(p) {
+    p.x = canvas.width / 2;
+    p.y = canvas.height / 2;
+    p.vx = (Math.random() - 0.5) * 10;
+    p.vy = (Math.random() - 0.5) * 10;
+    p.color = "#ffffff";
+}
+
+function drawCircle(x, y, r, color, glow = false) {
     ctx.beginPath();
+    if(glow) {
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = color;
+    }
     ctx.arc(x, y, r, 0, Math.PI * 2);
     ctx.fillStyle = color;
     ctx.fill();
+    ctx.shadowBlur = 0;
     ctx.closePath();
 }
 
-function collide(p) {
-    let dx = puck.x - p.x;
-    let dy = puck.y - p.y;
-    let dist = Math.sqrt(dx * dx + dy * dy);
-    if (dist < puck.r + p.r) {
-        let angle = Math.atan2(dy, dx);
-        let speed = 10; 
-        puck.vx = Math.cos(angle) * speed;
-        puck.vy = Math.sin(angle) * speed;
-    }
+function drawRink() {
+    // Outer Glow for the whole field
+    ctx.strokeStyle = "rgba(0, 242, 255, 0.1)";
+    ctx.lineWidth = 2;
+    
+    // Center Line
+    ctx.beginPath();
+    ctx.moveTo(wallThickness, canvas.height/2);
+    ctx.lineTo(canvas.width - wallThickness, canvas.height/2);
+    ctx.stroke();
+
+    // Center Circle
+    ctx.beginPath();
+    ctx.arc(canvas.width/2, canvas.height/2, 80, 0, Math.PI*2);
+    ctx.stroke();
+
+    // Goal Creases (Half circles at ends)
+    ctx.beginPath();
+    ctx.arc(canvas.width/2, 0, goalWidth/1.5, 0, Math.PI);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(canvas.width/2, canvas.height, goalWidth/1.5, Math.PI, 0);
+    ctx.stroke();
 }
 
-function update() {
-    puck.x += puck.vx;
-    puck.y += puck.vy;
+function handleCollisions(p) {
+    p.x += p.vx;
+    p.y += p.vy;
 
     let leftGoalEdge = (canvas.width - goalWidth) / 2;
     let rightGoalEdge = (canvas.width + goalWidth) / 2;
 
-    // Side wall collisions (Left & Right)
-    if (puck.x < puck.r + wallThickness) {
-        puck.x = puck.r + wallThickness;
-        puck.vx *= -1;
-        wallGlow = 10;
-    } else if (puck.x > canvas.width - puck.r - wallThickness) {
-        puck.x = canvas.width - puck.r - wallThickness;
-        puck.vx *= -1;
-        wallGlow = 10;
+    // Side Walls
+    if (p.x < p.r + wallThickness || p.x > canvas.width - p.r - wallThickness) {
+        p.vx *= -1;
+        p.color = getRandomColor();
+        p.x = p.x < p.r + wallThickness ? p.r + wallThickness : canvas.width - p.r - wallThickness;
     }
 
-    // Top wall collisions
-    if (puck.y < puck.r + wallThickness) {
-        // Check if it's inside the goal area
-        if (puck.x > leftGoalEdge && puck.x < rightGoalEdge) {
-            if (puck.y < 0) { // Scored
-                score1++;
-                resetPuck();
-            }
+    // Top/Bottom Walls + Goals
+    if (p.y < p.r + wallThickness) {
+        if (p.x > leftGoalEdge && p.x < rightGoalEdge) {
+            if (p.y < 0) { score1++; resetPuck(p); }
         } else {
-            // Hit the thick wall
-            puck.y = puck.r + wallThickness;
-            puck.vy *= -1;
-            wallGlow = 10;
+            p.vy *= -1;
+            p.color = getRandomColor();
+            p.y = p.r + wallThickness;
+        }
+    } else if (p.y > canvas.height - p.r - wallThickness) {
+        if (p.x > leftGoalEdge && p.x < rightGoalEdge) {
+            if (p.y > canvas.height) { score2++; resetPuck(p); }
+        } else {
+            p.vy *= -1;
+            p.color = getRandomColor();
+            p.y = canvas.height - p.r - wallThickness;
         }
     }
 
-    // Bottom wall collisions
-    if (puck.y > canvas.height - puck.r - wallThickness) {
-        if (puck.x > leftGoalEdge && puck.x < rightGoalEdge) {
-            if (puck.y > canvas.height) { // Scored
-                score2++;
-                resetPuck();
-            }
-        } else {
-            // Hit the thick wall
-            puck.y = canvas.height - puck.r - wallThickness;
-            puck.vy *= -1;
-            wallGlow = 10;
+    // Paddle Collisions
+    [paddle1, paddle2].forEach(pad => {
+        let dx = p.x - pad.x;
+        let dy = p.y - pad.y;
+        let dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < p.r + pad.r) {
+            let angle = Math.atan2(dy, dx);
+            let speed = Math.sqrt(p.vx**2 + p.vy**2) + 0.5; // Gain speed on hit
+            p.vx = Math.cos(angle) * Math.max(speed, 8);
+            p.vy = Math.sin(angle) * Math.max(speed, 8);
         }
-    }
-
-    collide(paddle1);
-    collide(paddle2);
-
-    if (wallGlow > 0) wallGlow--;
-    document.getElementById("score").textContent = score2 + " : " + score1;
+    });
 }
 
 function drawWalls() {
     ctx.fillStyle = wallColor;
     ctx.strokeStyle = wallBorder;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 3;
 
     let leftGoal = (canvas.width - goalWidth) / 2;
     let rightGoal = (canvas.width + goalWidth) / 2;
 
-    // Left Wall
+    // Sides
     ctx.fillRect(0, 0, wallThickness, canvas.height);
     ctx.strokeRect(0, 0, wallThickness, canvas.height);
-
-    // Right Wall
     ctx.fillRect(canvas.width - wallThickness, 0, wallThickness, canvas.height);
     ctx.strokeRect(canvas.width - wallThickness, 0, wallThickness, canvas.height);
 
-    // Top Walls (Left and Right of goal)
-    ctx.fillRect(0, 0, leftGoal, wallThickness);
-    ctx.strokeRect(0, 0, leftGoal, wallThickness);
-    ctx.fillRect(rightGoal, 0, canvas.width - rightGoal, wallThickness);
-    ctx.strokeRect(rightGoal, 0, canvas.width - rightGoal, wallThickness);
-
-    // Bottom Walls (Left and Right of goal)
-    ctx.fillRect(0, canvas.height - wallThickness, leftGoal, wallThickness);
-    ctx.strokeRect(0, canvas.height - wallThickness, leftGoal, wallThickness);
-    ctx.fillRect(rightGoal, canvas.height - wallThickness, canvas.width - rightGoal, wallThickness);
-    ctx.strokeRect(rightGoal, canvas.height - wallThickness, canvas.width - rightGoal, wallThickness);
-}
-
-function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Middle line
-    ctx.strokeStyle = "rgba(255,255,255,0.2)";
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.moveTo(0, canvas.height / 2);
-    ctx.lineTo(canvas.width, canvas.height / 2);
-    ctx.stroke();
-
-    drawWalls();
-
-    if (wallGlow > 0) {
-        ctx.shadowColor = "cyan";
-        ctx.shadowBlur = wallGlow * 2;
-    }
-
-    drawCircle(puck.x, puck.y, puck.r, "white");
-    ctx.shadowBlur = 0;
-
-    drawCircle(paddle1.x, paddle1.y, paddle1.r, "#4CAF50");
-    drawCircle(paddle2.x, paddle2.y, paddle2.r, "#FF5252");
+    // Top/Bottom pairs
+    const sections = [
+        [0, 0, leftGoal, wallThickness],
+        [rightGoal, 0, canvas.width - rightGoal, wallThickness],
+        [0, canvas.height - wallThickness, leftGoal, wallThickness],
+        [rightGoal, canvas.height - wallThickness, canvas.width - rightGoal, wallThickness]
+    ];
+    sections.forEach(s => {
+        ctx.fillRect(...s);
+        ctx.strokeRect(...s);
+    });
 }
 
 function loop() {
-    update();
-    draw();
+    ctx.fillStyle = "#050f1a";
+    ctx.fillRect(0,0, canvas.width, canvas.height);
+
+    drawRink();
+    drawWalls();
+
+    pucks.forEach(p => {
+        handleCollisions(p);
+        drawCircle(p.x, p.y, p.r, p.color, true);
+    });
+
+    drawCircle(paddle1.x, paddle1.y, paddle1.r, "#4CAF50");
+    drawCircle(paddle2.x, paddle2.y, paddle2.r, "#FF5252");
+
+    document.getElementById("score").textContent = score2 + " : " + score1;
     requestAnimationFrame(loop);
 }
 
+// Controls
 canvas.addEventListener("touchmove", e => {
     e.preventDefault();
     let rect = canvas.getBoundingClientRect();
     for (let t of e.touches) {
-        let x = t.clientX - rect.left;
+        let x = Math.max(wallThickness + paddle1.r, Math.min(t.clientX - rect.left, canvas.width - wallThickness - paddle1.r));
         let y = t.clientY - rect.top;
-
-        // Keep paddles inside the walls
-        if (x < wallThickness + paddle1.r) x = wallThickness + paddle1.r;
-        if (x > canvas.width - wallThickness - paddle1.r) x = canvas.width - wallThickness - paddle1.r;
 
         if (y > canvas.height / 2) {
             paddle1.x = x;
-            paddle1.y = y;
-            if (paddle1.y > canvas.height - wallThickness - paddle1.r) paddle1.y = canvas.height - wallThickness - paddle1.r;
+            paddle1.y = Math.max(canvas.height / 2 + paddle1.r, Math.min(y, canvas.height - wallThickness - paddle1.r));
         } else {
             paddle2.x = x;
-            paddle2.y = y;
-            if (paddle2.y < wallThickness + paddle2.r) paddle2.y = wallThickness + paddle2.r;
+            paddle2.y = Math.min(canvas.height / 2 - paddle2.r, Math.max(y, wallThickness + paddle2.r));
         }
     }
 }, { passive: false });
