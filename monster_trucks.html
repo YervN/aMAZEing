@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Monster Truck Mud-Race</title>
+<style>
+    body { margin: 0; overflow: hidden; background: #2c1810; font-family: sans-serif; touch-action: none; }
+    canvas { display: block; }
+    
+    /* UI Buttons */
+    .gas-btn {
+        position: absolute;
+        width: 120px;
+        height: 120px;
+        background: rgba(255, 255, 255, 0.2);
+        border: 4px solid white;
+        border-radius: 50%;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        user-select: none;
+    }
+    #p1-btn { bottom: 40px; right: 40px; border-color: #4CAF50; color: #4CAF50; }
+    #p2-btn { top: 40px; left: 40px; border-color: #FF5252; color: #FF5252; transform: rotate(180deg); }
+
+    #ui-layer {
+        position: absolute;
+        width: 100%;
+        text-align: center;
+        color: white;
+        pointer-events: none;
+    }
+    #p1-stats { bottom: 10px; left: 0; width: 100%; position: absolute; }
+    #p2-stats { top: 10px; left: 0; width: 100%; position: absolute; transform: rotate(180deg); }
+    .lap-counter { font-size: 24px; font-weight: bold; text-shadow: 2px 2px black; }
+</style>
+</head>
+<body>
+
+<div id="ui-layer">
+    <div id="p2-stats" class="lap-counter">P2 LAP: <span id="p2-lap">1</span>/4</div>
+    <div id="p1-stats" class="lap-counter">P1 LAP: <span id="p1-lap">1</span>/4</div>
+</div>
+
+<div id="p1-btn" class="gas-btn">GAS</div>
+<div id="p2-btn" class="gas-btn">GAS</div>
+
+<canvas id="raceCanvas"></canvas>
+
+<script>
+const canvas = document.getElementById("raceCanvas");
+const ctx = canvas.getContext("2d");
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+// Game Constants
+const LAPS_TO_WIN = 4;
+const friction = 0.98;
+const trackInner = 120;
+const trackOuter = 280;
+
+// Truck Objects
+function createTruck(id, color, yOffset) {
+    return {
+        id: id,
+        x: canvas.width / 2 + yOffset,
+        y: canvas.height - 100,
+        angle: 0,
+        speed: 0,
+        accel: 0.4,
+        maxSpeed: 12,
+        color: color,
+        laps: 1,
+        progress: 0, // Used to track full rotation
+        isOffTrack: false,
+        gasPressed: false
+    };
+}
+
+const p1 = createTruck(1, "#4CAF50", 60);
+const p2 = createTruck(2, "#FF5252", -60);
+
+// Input Handling
+function setupInput(btnId, truck) {
+    const btn = document.getElementById(btnId);
+    btn.addEventListener("touchstart", (e) => { e.preventDefault(); truck.gasPressed = true; btn.style.background = "rgba(255,255,255,0.5)"; });
+    btn.addEventListener("touchend", () => { truck.gasPressed = false; btn.style.background = "rgba(255,255,255,0.2)"; });
+}
+setupInput("p1-btn", p1);
+setupInput("p2-btn", p2);
+
+function updateTruck(t) {
+    // Center point of the oval track
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+
+    // Movement Physics
+    if (t.gasPressed) {
+        t.speed += t.accel;
+    }
+    t.speed *= friction;
+    if (t.speed > t.maxSpeed) t.speed = t.maxSpeed;
+
+    // Determine position relative to center
+    let dx = t.x - centerX;
+    let dy = t.y - centerY;
+    let dist = Math.sqrt(dx*dx + dy*dy);
+    
+    // Direction calculation
+    let currentAngle = Math.atan2(dy, dx);
+    
+    // Check if off track (too far in or too far out)
+    if (dist < trackInner || dist > trackOuter) {
+        t.isOffTrack = true;
+        t.speed *= 0.85; // Slow down in the mud!
+    } else {
+        t.isOffTrack = false;
+    }
+
+    // Move truck along the circle based on speed
+    // The "pushing too hard" mechanic: higher speed makes the radius (dist) increase
+    if (t.gasPressed) {
+        dist += (t.speed * 0.5); // Centrifugal force pushes you out
+    } else {
+        // Natural steering back toward the center of the lane
+        let targetDist = (trackInner + trackOuter) / 2;
+        dist += (targetDist - dist) * 0.05;
+    }
+
+    currentAngle += (t.speed / dist);
+    
+    // Update coordinates
+    t.x = centerX + Math.cos(currentAngle) * dist;
+    t.y = centerY + Math.sin(currentAngle) * dist;
+    t.angle = currentAngle + Math.PI/2;
+
+    // Lap Logic
+    let oldProgress = t.progress;
+    t.progress = currentAngle;
+    
+    // Crossing the "finish line" (bottom center)
+    if (oldProgress < Math.PI/2 && t.progress >= Math.PI/2) {
+        if(t.laps < LAPS_TO_WIN) {
+            t.laps++;
+            document.getElementById(`p${t.id}-lap`).textContent = t.laps;
+        } else {
+            alert(`PLAYER ${t.id} WINS THE MONSTER RALLY!`);
+            resetGame();
+        }
+    }
+}
+
+function resetGame() {
+    location.reload();
+}
+
+function drawTrack() {
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
+
+    // Mud/Grass Background
+    ctx.fillStyle = "#2c1810";
+    ctx.fillRect(0,0,canvas.width, canvas.height);
+
+    // The Dirt Track
+    ctx.beginPath();
+    ctx.arc(cx, cy, trackOuter, 0, Math.PI*2);
+    ctx.arc(cx, cy, trackInner, 0, Math.PI*2, true);
+    ctx.fillStyle = "#5d4037";
+    ctx.fill();
+
+    // Track Lines
+    ctx.strokeStyle = "rgba(255,255,255,0.1)";
+    ctx.setLineDash([20, 20]);
+    ctx.beginPath();
+    ctx.arc(cx, cy, (trackOuter + trackInner)/2, 0, Math.PI*2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Finish Line
+    ctx.strokeStyle = "white";
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy + trackInner);
+    ctx.lineTo(cx, cy + trackOuter);
+    ctx.stroke();
+}
+
+function drawTruck(t) {
+    ctx.save();
+    ctx.translate(t.x, t.y);
+    ctx.rotate(t.angle);
+
+    // "Mud Splatter" if off track
+    if (t.isOffTrack) {
+        ctx.fillStyle = "brown";
+        for(let i=0; i<5; i++) {
+            ctx.fillRect(Math.random()*20-10, 15, 5, 5);
+        }
+    }
+
+    // Monster Truck Body
+    ctx.fillStyle = t.color;
+    ctx.fillRect(-15, -25, 30, 50);
+    
+    // Big Wheels
+    ctx.fillStyle = "black";
+    ctx.fillRect(-22, -20, 10, 15); // TL
+    ctx.fillRect(12, -20, 10, 15);  // TR
+    ctx.fillRect(-22, 5, 10, 15);   // BL
+    ctx.fillRect(12, 5, 10, 15);    // BR
+
+    // Roof highlight
+    ctx.fillStyle = "rgba(255,255,255,0.3)";
+    ctx.fillRect(-10, -10, 20, 15);
+
+    ctx.restore();
+}
+
+function loop() {
+    drawTrack();
+    
+    updateTruck(p1);
+    updateTruck(p2);
+    
+    drawTruck(p1);
+    drawTruck(p2);
+    
+    requestAnimationFrame(loop);
+}
+
+loop();
+</script>
+</body>
+</html>
