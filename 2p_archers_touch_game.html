@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Two Archers: Touch Duel</title>
+  <style>
+    :root {
+      --bg-top: #f6b26b;
+      --bg-mid: #ffd08a;
+      --bg-low: #ffe7b8;
+      --hud-bg: rgba(22, 28, 37, 0.78);
+      --hud-accent: #8dd3ff;
+      --p1: #0b6cff;
+      --p2: #d9483b;
+      --text: #f7fbff;
+      --shadow: rgba(0, 0, 0, 0.3);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 15% 15%, rgba(255, 255, 255, 0.45), transparent 22%),
+        radial-gradient(circle at 80% 30%, rgba(255, 255, 255, 0.32), transparent 18%),
+        linear-gradient(180deg, var(--bg-top) 0%, var(--bg-mid) 45%, var(--bg-low) 100%);
+      font-family: "Trebuchet MS", "Segoe UI", Tahoma, sans-serif;
+      color: var(--text);
+      touch-action: none;
+    }
+
+    #game {
+      width: 100%;
+      height: 100%;
+      display: block;
+      touch-action: none;
+    }
+
+    .hud {
+      position: fixed;
+      left: 50%;
+      top: 10px;
+      transform: translateX(-50%);
+      background: var(--hud-bg);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 14px;
+      box-shadow: 0 10px 24px var(--shadow);
+      padding: 10px 14px;
+      display: grid;
+      grid-template-columns: auto auto auto;
+      gap: 12px;
+      align-items: center;
+      min-width: min(96vw, 820px);
+      max-width: 96vw;
+      backdrop-filter: blur(6px);
+    }
+
+    .chip {
+      background: rgba(255, 255, 255, 0.12);
+      border-radius: 10px;
+      padding: 8px 10px;
+      font-size: 14px;
+      white-space: nowrap;
+    }
+
+    .chip strong {
+      color: var(--hud-accent);
+    }
+
+    .help {
+      position: fixed;
+      left: 50%;
+      bottom: 14px;
+      transform: translateX(-50%);
+      font-size: 13px;
+      color: #203246;
+      background: rgba(255, 247, 232, 0.85);
+      border-radius: 999px;
+      padding: 8px 14px;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      box-shadow: 0 6px 14px rgba(0, 0, 0, 0.15);
+      max-width: 92vw;
+      text-align: center;
+    }
+
+    #overlay {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(13, 19, 27, 0.45);
+      animation: fadeIn 280ms ease;
+    }
+
+    .card {
+      background: rgba(16, 23, 32, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      border-radius: 16px;
+      min-width: min(88vw, 360px);
+      text-align: center;
+      padding: 18px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+    }
+
+    .card h2 {
+      margin: 0 0 10px;
+      font-size: 28px;
+      letter-spacing: 0.4px;
+    }
+
+    button {
+      border: 0;
+      color: #0b1f36;
+      background: linear-gradient(180deg, #9fe8ff, #66c9ff);
+      border-radius: 10px;
+      padding: 10px 16px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 6px 18px rgba(40, 125, 170, 0.4);
+      transition: transform 140ms ease;
+    }
+
+    button:active {
+      transform: scale(0.97);
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @media (max-width: 700px) {
+      .hud {
+        grid-template-columns: 1fr;
+        gap: 8px;
+        width: 94vw;
+        top: 8px;
+      }
+
+      .chip {
+        text-align: center;
+      }
+
+      .help {
+        font-size: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game" aria-label="Two player archer duel"></canvas>
+
+  <div class="hud">
+    <div class="chip" id="turnChip"></div>
+    <div class="chip" id="windChip"></div>
+    <div class="chip" id="hpChip"></div>
+  </div>
+
+  <div class="help">Touch and drag from your archer to aim. Release to fire.</div>
+
+  <div id="overlay">
+    <div class="card">
+      <h2 id="winnerText">Winner</h2>
+      <button id="restartBtn">Play Again</button>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+    const turnChip = document.getElementById("turnChip");
+    const windChip = document.getElementById("windChip");
+    const hpChip = document.getElementById("hpChip");
+    const overlay = document.getElementById("overlay");
+    const winnerText = document.getElementById("winnerText");
+    const restartBtn = document.getElementById("restartBtn");
+
+    const MAX_HP = 4;
+    const state = {
+      w: 0,
+      h: 0,
+      dpr: 1,
+      currentPlayer: 0,
+      players: [],
+      projectile: null,
+      aiming: false,
+      activePointerId: null,
+      aimPoint: null,
+      wind: 0,
+      gravity: 520,
+      winner: null,
+      canShoot: true,
+      impactFlash: 0,
+      lastTs: performance.now(),
+    };
+
+    function resize() {
+      state.w = window.innerWidth;
+      state.h = window.innerHeight;
+      state.dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
+      canvas.width = Math.floor(state.w * state.dpr);
+      canvas.height = Math.floor(state.h * state.dpr);
+      canvas.style.width = state.w + "px";
+      canvas.style.height = state.h + "px";
+      ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
+      placePlayers();
+    }
+
+    function terrainY(x) {
+      const base = state.h * 0.82;
+      const wave = Math.sin((x / Math.max(240, state.w)) * Math.PI * 3.2) * 18;
+      const center = state.w * 0.5;
+      const dist = (x - center) / (state.w * 0.22);
+      const mound = Math.exp(-dist * dist) * 55;
+      return base + wave - mound;
+    }
+
+    function placePlayers() {
+      const p1x = state.w * 0.12;
+      const p2x = state.w * 0.88;
+
+      if (!state.players.length) {
+        state.players = [
+          { id: 1, x: p1x, hp: MAX_HP, color: getCSS("--p1") },
+          { id: 2, x: p2x, hp: MAX_HP, color: getCSS("--p2") },
+        ];
+      } else {
+        state.players[0].x = p1x;
+        state.players[1].x = p2x;
+      }
+    }
+
+    function getCSS(varName) {
+      return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+    }
+
+    function resetGame() {
+      state.currentPlayer = 0;
+      state.projectile = null;
+      state.aiming = false;
+      state.activePointerId = null;
+      state.aimPoint = null;
+      state.winner = null;
+      state.canShoot = true;
+      state.wind = randomWind();
+      state.impactFlash = 0;
+      overlay.style.display = "none";
+      placePlayers();
+      state.players.forEach((p) => {
+        p.hp = MAX_HP;
+      });
+      updateHUD();
+    }
+
+    function randomWind() {
+      const sign = Math.random() < 0.5 ? -1 : 1;
+      return sign * (20 + Math.random() * 70);
+    }
+
+    function activePlayer() {
+      return state.players[state.currentPlayer];
+    }
+
+    function otherPlayer() {
+      return state.players[1 - state.currentPlayer];
+    }
+
+    function playerAnchor(player) {
+      const foot = terrainY(player.x);
+      return { x: player.x, y: foot - 42 };
+    }
+
+    function playerBounds(player) {
+      const foot = terrainY(player.x);
+      const w = 30;
+      const h = 52;
+      return {
+        left: player.x - w / 2,
+        top: foot - h,
+        right: player.x + w / 2,
+        bottom: foot,
+      };
+    }
+
+    function clampAim(raw, shooter) {
+      const anchor = playerAnchor(shooter);
+      let dx = raw.x - anchor.x;
+      let dy = raw.y - anchor.y;
+
+      if (state.currentPlayer === 0 && dx < 18) dx = 18;
+      if (state.currentPlayer === 1 && dx > -18) dx = -18;
+
+      const maxLen = Math.max(90, state.w * 0.23);
+      const len = Math.hypot(dx, dy) || 1;
+      if (len > maxLen) {
+        const scale = maxLen / len;
+        dx *= scale;
+        dy *= scale;
+      }
+
+      return { x: anchor.x + dx, y: anchor.y + dy };
+    }
+
+    function startAim(point, pointerId) {
+      if (!state.canShoot || state.projectile || state.winner !== null) return;
+      const shooter = activePlayer();
+      const anchor = playerAnchor(shooter);
+      const dist = Math.hypot(point.x - anchor.x, point.y - anchor.y);
+      if (dist > Math.max(130, state.w * 0.18)) return;
+
+      state.aiming = true;
+      state.activePointerId = pointerId;
+      state.aimPoint = clampAim(point, shooter);
+      updateHUD();
+    }
+
+    function moveAim(point) {
+      if (!state.aiming) return;
+      state.aimPoint = clampAim(point, activePlayer());
+    }
+
+    function releaseShot(point) {
+      if (!state.aiming || !state.canShoot) return;
+      state.aiming = false;
+      const shooter = activePlayer();
+      const anchor = playerAnchor(shooter);
+      const end = clampAim(point, shooter);
+      state.aimPoint = end;
+
+      let dx = end.x - anchor.x;
+      let dy = end.y - anchor.y;
+      const minDist = 22;
+      const dist = Math.max(minDist, Math.hypot(dx, dy));
+      const angle = Math.atan2(dy, dx);
+
+      const maxDist = Math.max(100, state.w * 0.23);
+      const power = Math.min(1, dist / maxDist);
+      const speed = 290 + power * 490;
+
+      state.projectile = {
+        x: anchor.x,
+        y: anchor.y - 2,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        rot: angle,
+      };
+      state.canShoot = false;
+      updateHUD();
+    }
+
+    function handlePointerDown(e) {
+      const p = pointerPos(e);
+      startAim(p, e.pointerId);
+    }
+
+    function handlePointerMove(e) {
+      if (state.activePointerId !== e.pointerId) return;
+      moveAim(pointerPos(e));
+    }
+
+    function handlePointerUp(e) {
+      if (state.activePointerId !== e.pointerId) return;
+      releaseShot(pointerPos(e));
+      state.activePointerId = null;
+    }
+
+    function pointerPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+      };
+    }
+
+    function updateProjectile(dt) {
+      const p = state.projectile;
+      if (!p) return;
+
+      p.vx += state.wind * dt;
+      p.vy += state.gravity * dt;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.rot = Math.atan2(p.vy, p.vx);
+
+      const enemy = otherPlayer();
+      const hitbox = playerBounds(enemy);
+      if (p.x >= hitbox.left && p.x <= hitbox.right && p.y >= hitbox.top && p.y <= hitbox.bottom) {
+        enemy.hp -= 1;
+        state.impactFlash = 0.28;
+        if (enemy.hp <= 0) {
+          state.winner = activePlayer().id;
+          showWinner();
+          state.projectile = null;
+          state.canShoot = false;
+          updateHUD();
+          return;
+        }
+        endTurn();
+        return;
+      }
+
+      const ground = terrainY(p.x);
+      if (p.y >= ground || p.x < -30 || p.x > state.w + 30 || p.y > state.h + 40) {
+        endTurn();
+      }
+    }
+
+    function endTurn() {
+      state.projectile = null;
+      if (state.winner !== null) return;
+      state.currentPlayer = 1 - state.currentPlayer;
+      state.wind = randomWind();
+      state.canShoot = true;
+      state.aiming = false;
+      state.aimPoint = null;
+      updateHUD();
+    }
+
+    function showWinner() {
+      winnerText.textContent = "Player " + state.winner + " Wins";
+      overlay.style.display = "flex";
+    }
+
+    function updateHUD() {
+      const current = state.currentPlayer + 1;
+      turnChip.innerHTML = "Turn: <strong>Player " + current + "</strong>";
+
+      const windDir = state.wind >= 0 ? "to right" : "to left";
+      windChip.innerHTML = "Wind: <strong>" + Math.abs(state.wind).toFixed(0) + " " + windDir + "</strong>";
+
+      const p1 = state.players[0] ? state.players[0].hp : MAX_HP;
+      const p2 = state.players[1] ? state.players[1].hp : MAX_HP;
+      hpChip.innerHTML = "HP: <strong>P1 " + "<span style='color:" + getCSS("--p1") + "'>" + hearts(p1) + "</span>  |  P2 " + "<span style='color:" + getCSS("--p2") + "'>" + hearts(p2) + "</span></strong>";
+    }
+
+    function hearts(n) {
+      return "\u2665".repeat(Math.max(0, n));
+    }
+
+    function drawBackground() {
+      const g = ctx.createLinearGradient(0, 0, 0, state.h);
+      g.addColorStop(0, "rgba(255, 205, 132, 0.15)");
+      g.addColorStop(1, "rgba(255, 243, 219, 0.55)");
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, state.w, state.h);
+
+      ctx.save();
+      const pulse = 0.5 + Math.sin(performance.now() * 0.0022) * 0.1;
+      ctx.globalAlpha = 0.25 + pulse * 0.22;
+      ctx.beginPath();
+      ctx.arc(state.w * 0.82, state.h * 0.2, 56 + pulse * 8, 0, Math.PI * 2);
+      ctx.fillStyle = "#fff5cf";
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawTerrain() {
+      ctx.beginPath();
+      ctx.moveTo(0, state.h);
+      for (let x = 0; x <= state.w; x += 5) {
+        ctx.lineTo(x, terrainY(x));
+      }
+      ctx.lineTo(state.w, state.h);
+      ctx.closePath();
+
+      const land = ctx.createLinearGradient(0, state.h * 0.45, 0, state.h);
+      land.addColorStop(0, "#2e6d2b");
+      land.addColorStop(1, "#1f4f23");
+      ctx.fillStyle = land;
+      ctx.fill();
+
+      ctx.strokeStyle = "rgba(15, 56, 19, 0.45)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    function drawPlayer(player, facing) {
+      const b = playerBounds(player);
+      const centerX = player.x;
+      const glow = state.currentPlayer === player.id - 1 && !state.projectile && state.winner === null;
+
+      if (glow) {
+        ctx.save();
+        ctx.shadowBlur = 18;
+        ctx.shadowColor = "rgba(255, 255, 255, 0.75)";
+      }
+
+      ctx.fillStyle = player.color;
+      roundRect(b.left, b.top + 15, b.right - b.left, b.bottom - (b.top + 15), 9, true);
+
+      ctx.fillStyle = "#f8e5c6";
+      ctx.beginPath();
+      ctx.arc(centerX, b.top + 9, 9, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = "#2a2a2a";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(centerX, b.top + 22);
+      ctx.lineTo(centerX + facing * 8, b.top + 35);
+      ctx.stroke();
+
+      // Bow
+      ctx.strokeStyle = "#2e1d0f";
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(centerX + facing * 8, b.top + 30, 13, -1.1, 1.1, facing < 0);
+      ctx.stroke();
+
+      if (glow) ctx.restore();
+    }
+
+    function drawProjectile() {
+      const p = state.projectile;
+      if (!p) return;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+
+      ctx.strokeStyle = "#2b1a11";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(-14, 0);
+      ctx.lineTo(12, 0);
+      ctx.stroke();
+
+      ctx.fillStyle = "#bcd3e6";
+      ctx.beginPath();
+      ctx.moveTo(12, 0);
+      ctx.lineTo(7, -3);
+      ctx.lineTo(7, 3);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = "#f6f6f6";
+      ctx.beginPath();
+      ctx.moveTo(-12, 0);
+      ctx.lineTo(-16, -4);
+      ctx.lineTo(-14, 0);
+      ctx.lineTo(-16, 4);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    function drawAimGuide() {
+      if (!state.aiming || !state.aimPoint || state.projectile) return;
+      const shooter = activePlayer();
+      const anchor = playerAnchor(shooter);
+
+      ctx.save();
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.85)";
+      ctx.setLineDash([8, 7]);
+      ctx.beginPath();
+      ctx.moveTo(anchor.x, anchor.y);
+      ctx.lineTo(state.aimPoint.x, state.aimPoint.y);
+      ctx.stroke();
+
+      // Predicted arc dots for faster touch aiming.
+      const dx = state.aimPoint.x - anchor.x;
+      const dy = state.aimPoint.y - anchor.y;
+      const dist = Math.hypot(dx, dy);
+      const maxDist = Math.max(100, state.w * 0.23);
+      const speed = 290 + Math.min(1, dist / maxDist) * 490;
+      let vx = Math.cos(Math.atan2(dy, dx)) * speed;
+      let vy = Math.sin(Math.atan2(dy, dx)) * speed;
+      let px = anchor.x;
+      let py = anchor.y;
+
+      ctx.setLineDash([]);
+      for (let i = 0; i < 24; i++) {
+        vx += state.wind * 0.045;
+        vy += state.gravity * 0.045;
+        px += vx * 0.045;
+        py += vy * 0.045;
+        if (py >= terrainY(px)) break;
+        ctx.globalAlpha = 1 - i / 24;
+        ctx.fillStyle = "rgba(175, 230, 255, 0.95)";
+        ctx.beginPath();
+        ctx.arc(px, py, 2.1, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    function drawImpactFlash(dt) {
+      if (state.impactFlash <= 0) return;
+      state.impactFlash -= dt;
+      const alpha = Math.max(0, state.impactFlash) * 2.8;
+      ctx.fillStyle = "rgba(255, 244, 200, " + alpha.toFixed(3) + ")";
+      ctx.fillRect(0, 0, state.w, state.h);
+    }
+
+    function roundRect(x, y, w, h, r, fill) {
+      const rr = Math.min(r, w / 2, h / 2);
+      ctx.beginPath();
+      ctx.moveTo(x + rr, y);
+      ctx.arcTo(x + w, y, x + w, y + h, rr);
+      ctx.arcTo(x + w, y + h, x, y + h, rr);
+      ctx.arcTo(x, y + h, x, y, rr);
+      ctx.arcTo(x, y, x + w, y, rr);
+      ctx.closePath();
+      if (fill) ctx.fill();
+    }
+
+    function frame(ts) {
+      const dt = Math.min(0.033, (ts - state.lastTs) / 1000);
+      state.lastTs = ts;
+
+      updateProjectile(dt);
+
+      drawBackground();
+      drawTerrain();
+      drawPlayer(state.players[0], 1);
+      drawPlayer(state.players[1], -1);
+      drawAimGuide();
+      drawProjectile();
+      drawImpactFlash(dt);
+
+      requestAnimationFrame(frame);
+    }
+
+    canvas.addEventListener("pointerdown", handlePointerDown, { passive: true });
+    canvas.addEventListener("pointermove", handlePointerMove, { passive: true });
+    canvas.addEventListener("pointerup", handlePointerUp, { passive: true });
+    canvas.addEventListener("pointercancel", handlePointerUp, { passive: true });
+
+    restartBtn.addEventListener("click", resetGame);
+    window.addEventListener("resize", resize);
+
+    resize();
+    resetGame();
+    requestAnimationFrame((ts) => {
+      state.lastTs = ts;
+      frame(ts);
+    });
+  </script>
+</body>
+</html>
