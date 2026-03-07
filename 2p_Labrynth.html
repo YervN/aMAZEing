@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Labyrinth Versus</title>
+    <style>
+        :root {
+            --p1-color: #3498db;
+            --p2-color: #e74c3c;
+            --wall-color: #2c3e50;
+            --path-color: #ecf0f1;
+            --gold: #f1c40f;
+        }
+        body { margin: 0; overflow: hidden; background: #1a1a1a; font-family: 'Segoe UI', sans-serif; touch-action: none; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
+        
+        #ui-top { position: absolute; top: 10px; width: 100%; display: flex; justify-content: space-around; color: white; pointer-events: none; z-index: 10; }
+        .stat-box { background: rgba(0,0,0,0.6); padding: 5px 15px; border-radius: 20px; border: 2px solid white; }
+
+        canvas { background: var(--wall-color); border: 5px solid #444; box-shadow: 0 0 20px rgba(0,0,0,0.5); max-width: 95vw; max-height: 70vh; }
+
+        /* Touch Controls */
+        .controls-container { position: absolute; bottom: 20px; width: 100%; display: flex; justify-content: space-between; padding: 0 20px; box-sizing: border-box; }
+        .dpad { display: grid; grid-template-columns: repeat(3, 50px); grid-template-rows: repeat(3, 50px); gap: 5px; }
+        .btn { width: 50px; height: 50px; background: rgba(255,255,255,0.2); border: 2px solid white; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 20px; user-select: none; }
+        .btn:active { background: rgba(255,255,255,0.5); }
+        .up { grid-column: 2; }
+        .left { grid-column: 1; grid-row: 2; }
+        .down { grid-column: 2; grid-row: 2; }
+        .right { grid-column: 3; grid-row: 2; }
+        
+        #p1-ctrl .btn { border-color: var(--p1-color); color: var(--p1-color); }
+        #p2-ctrl .btn { border-color: var(--p2-color); color: var(--p2-color); }
+
+        #msg-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: none; flex-direction: column; align-items: center; justify-content: center; color: white; z-index: 100; }
+        button#next-btn { padding: 15px 30px; font-size: 20px; cursor: pointer; background: var(--gold); border: none; border-radius: 5px; margin-top: 20px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div id="ui-top">
+    <div class="stat-box" style="border-color: var(--p1-color)">P1: Blue</div>
+    <div class="stat-box" id="level-display">Level 1/5</div>
+    <div class="stat-box" style="border-color: var(--p2-color)">P2: Red</div>
+</div>
+
+<canvas id="mazeCanvas"></canvas>
+
+<div id="msg-overlay">
+    <h1 id="win-text">PLAYER 1 WINS!</h1>
+    <button id="next-btn" onclick="nextLevel()">NEXT LEVEL</button>
+</div>
+
+<div class="controls-container">
+    <div class="dpad" id="p1-ctrl">
+        <div class="btn up" data-key="w">▲</div>
+        <div class="btn left" data-key="a">◀</div>
+        <div class="btn down" data-key="s">▼</div>
+        <div class="btn right" data-key="d">▶</div>
+    </div>
+    <div class="dpad" id="p2-ctrl">
+        <div class="btn up" data-key="ArrowUp">▲</div>
+        <div class="btn left" data-key="ArrowLeft">◀</div>
+        <div class="btn down" data-key="ArrowDown">▼</div>
+        <div class="btn right" data-key="ArrowRight">▶</div>
+    </div>
+</div>
+
+<script>
+const canvas = document.getElementById("mazeCanvas");
+const ctx = canvas.getContext("2d");
+
+// Game Settings
+let currentLevel = 1;
+const maxLevels = 5;
+let grid = [];
+let cellSize = 0;
+let cols, rows;
+
+const p1 = { x: 1, y: 1, color: '#3498db' };
+const p2 = { x: 0, y: 0, color: '#e74c3c' }; // Will be set based on grid size
+
+// 1 = path, 0 = wall
+function generateMaze(w, h) {
+    cols = w; rows = h;
+    grid = Array.from({ length: rows }, () => Array(cols).fill(0));
+
+    function walk(x, y) {
+        grid[y][x] = 1;
+        const dirs = [[0, -2], [0, 2], [-2, 0], [2, 0]].sort(() => Math.random() - 0.5);
+        
+        for (let [dx, dy] of dirs) {
+            let nx = x + dx, ny = y + dy;
+            if (nx >= 0 && nx < cols && ny >= 0 && ny < rows && grid[ny][nx] === 0) {
+                grid[y + dy / 2][x + dx / 2] = 1;
+                walk(nx, ny);
+            }
+        }
+    }
+    walk(1, 1);
+
+    // Ensure center is open (The Goal)
+    let cx = Math.floor(cols / 2);
+    let cy = Math.floor(rows / 2);
+    // Make a 2x2 or 1x1 goal area
+    grid[cy][cx] = 2; // 2 = Gold
+    grid[cy-1][cx] = 1; grid[cy+1][cx] = 1; grid[cy][cx-1] = 1; grid[cy][cx+1] = 1; 
+}
+
+function initLevel() {
+    const size = 11 + (currentLevel * 4); // Grid grows each level
+    generateMaze(size, size);
+    
+    // Reset Player Positions
+    p1.x = 1; p1.y = 1;
+    p2.x = cols - 2; p2.y = rows - 2;
+    
+    // Scale canvas
+    const displaySize = Math.min(window.innerWidth * 0.9, window.innerHeight * 0.6);
+    canvas.width = displaySize;
+    canvas.height = displaySize;
+    cellSize = canvas.width / cols;
+
+    document.getElementById("level-display").textContent = `Level ${currentLevel}/${maxLevels}`;
+    document.getElementById("msg-overlay").style.display = "none";
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+            if (grid[r][c] === 0) {
+                ctx.fillStyle = "#2c3e50"; // Wall
+            } else if (grid[r][c] === 2) {
+                ctx.fillStyle = "#f1c40f"; // Gold Goal
+            } else {
+                ctx.fillStyle = "#ecf0f1"; // Path
+            }
+            ctx.fillRect(c * cellSize, r * cellSize, cellSize + 0.5, cellSize + 0.5);
+        }
+    }
+
+    // Draw Gold Icon
+    ctx.font = `${cellSize}px serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("🏆", (Math.floor(cols/2) + 0.5) * cellSize, (Math.floor(rows/2) + 0.5) * cellSize);
+
+    // Players
+    drawPlayer(p1);
+    drawPlayer(p2);
+}
+
+function drawPlayer(p) {
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = p.color;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc((p.x + 0.5) * cellSize, (p.y + 0.5) * cellSize, cellSize * 0.35, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+}
+
+function move(player, dx, dy) {
+    let nx = player.x + dx;
+    let ny = player.y + dy;
+
+    if (nx >= 0 && nx < cols && ny >= 0 && ny < rows && grid[ny][nx] !== 0) {
+        player.x = nx;
+        player.y = ny;
+
+        if (grid[ny][nx] === 2) {
+            checkWin(player === p1 ? "BLUE" : "RED");
+        }
+    }
+}
+
+function checkWin(winner) {
+    document.getElementById("msg-overlay").style.display = "flex";
+    document.getElementById("win-text").textContent = `PLAYER ${winner} REACHED THE VAULT!`;
+    if (currentLevel === maxLevels) {
+        document.getElementById("next-btn").textContent = "RESTART GAME";
+    }
+}
+
+function nextLevel() {
+    if (currentLevel < maxLevels) {
+        currentLevel++;
+    } else {
+        currentLevel = 1;
+    }
+    initLevel();
+}
+
+// Input Handling
+window.addEventListener("keydown", (e) => {
+    // P1 WASD
+    if (e.key === 'w') move(p1, 0, -1);
+    if (e.key === 's') move(p1, 0, 1);
+    if (e.key === 'a') move(p1, -1, 0);
+    if (e.key === 'd') move(p1, 1, 0);
+
+    // P2 Arrows
+    if (e.key === 'ArrowUp') move(p2, 0, -1);
+    if (e.key === 'ArrowDown') move(p2, 0, 1);
+    if (e.key === 'ArrowLeft') move(p2, -1, 0);
+    if (e.key === 'ArrowRight') move(p2, 1, 0);
+});
+
+// Touch Handling
+document.querySelectorAll('.btn').forEach(btn => {
+    btn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        const key = btn.getAttribute('data-key');
+        // Manually trigger movement
+        const fakeEvent = { key: key };
+        window.dispatchEvent(new KeyboardEvent('keydown', fakeEvent));
+    });
+});
+
+// Game Loop
+function loop() {
+    draw();
+    requestAnimationFrame(loop);
+}
+
+initLevel();
+loop();
+</script>
+
+</body>
+</html>
