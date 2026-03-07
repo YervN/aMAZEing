@@ -3,217 +3,179 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Symmetrical Labyrinth Race</title>
+    <title>Symmetrical Labyrinth</title>
     <style>
-        :root {
-            --p1-color: #ff9ff3;
-            --p2-color: #feca57;
-            --wall-color: #2d3436;
-            --path-color: #dfe6e9;
-        }
-        body { margin: 0; overflow: hidden; background: #1e272e; font-family: 'Segoe UI', sans-serif; touch-action: none; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
+        body { margin: 0; background: #121212; color: white; font-family: sans-serif; overflow: hidden; touch-action: none; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
+        #ui { position: absolute; top: 10px; width: 100%; display: flex; justify-content: space-around; z-index: 10; }
+        .score-card { background: rgba(255,255,255,0.1); padding: 10px 20px; border-radius: 10px; border: 2px solid #444; }
+        canvas { background: #000; border: 4px solid #333; box-shadow: 0 0 20px rgba(0,0,0,0.5); max-width: 90vw; max-height: 50vh; }
         
-        #ui-top { position: absolute; top: 15px; width: 100%; display: flex; justify-content: space-around; color: white; pointer-events: none; z-index: 10; }
-        .stat-box { background: rgba(0,0,0,0.7); padding: 8px 20px; border-radius: 15px; border: 2px solid #576574; font-weight: bold; }
-
-        canvas { background: var(--wall-color); border: 8px solid #576574; border-radius: 10px; box-shadow: 0 0 30px rgba(0,0,0,0.5); max-width: 90vw; max-height: 60vh; }
-
-        /* Controls */
-        .controls-container { position: absolute; bottom: 30px; width: 100%; display: flex; justify-content: space-between; padding: 0 30px; box-sizing: border-box; }
-        .dpad { display: grid; grid-template-columns: repeat(3, 55px); grid-template-rows: repeat(3, 55px); gap: 8px; }
-        .btn { width: 55px; height: 55px; background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.4); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: white; font-size: 24px; user-select: none; transition: 0.1s; }
-        .btn:active { background: rgba(255,255,255,0.3); transform: scale(0.95); }
-        .up { grid-column: 2; }
-        .left { grid-column: 1; grid-row: 2; }
-        .down { grid-column: 2; grid-row: 2; }
-        .right { grid-column: 3; grid-row: 2; }
+        .controls { position: absolute; bottom: 20px; width: 100%; display: flex; justify-content: space-between; padding: 0 20px; box-sizing: border-box; }
+        .dpad { display: grid; grid-template-columns: repeat(3, 60px); grid-template-rows: repeat(3, 60px); gap: 5px; }
+        .btn { background: #333; border: 2px solid #666; color: white; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 24px; user-select: none; }
+        .btn:active { background: #555; }
+        .up { grid-column: 2; } .left { grid-column: 1; grid-row: 2; } .down { grid-column: 2; grid-row: 2; } .right { grid-column: 3; grid-row: 2; }
         
-        #p1-ctrl .btn { border-color: var(--p1-color); text-shadow: 0 0 10px var(--p1-color); }
-        #p2-ctrl .btn { border-color: var(--p2-color); text-shadow: 0 0 10px var(--p2-color); }
-
-        #msg-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: none; flex-direction: column; align-items: center; justify-content: center; color: white; z-index: 100; text-align: center; }
-        button#next-btn { padding: 15px 40px; font-size: 22px; cursor: pointer; background: #10ac84; color: white; border: none; border-radius: 50px; margin-top: 25px; font-weight: bold; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        #p1-btns .btn { border-color: #ff79c6; }
+        #p2-btns .btn { border-color: #f1fa8c; }
+        
+        #overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 100; }
+        button { padding: 15px 30px; font-size: 20px; background: #50fa7b; border: none; border-radius: 5px; cursor: pointer; margin-top: 20px; }
     </style>
 </head>
 <body>
 
-<div id="ui-top">
-    <div class="stat-box" style="color: var(--p1-color)">🦋 P1 (WASD)</div>
-    <div class="stat-box" id="level-display">Level 1/5</div>
-    <div class="stat-box" style="color: var(--p2-color)">🧱 P2 (ARROWS)</div>
+<div id="ui">
+    <div class="score-card" id="p1-label" style="color:#ff79c6">🦋 P1 (WASD)</div>
+    <div class="score-card" id="lvl-card">Level 1/5</div>
+    <div class="score-card" id="p2-label" style="color:#f1fa8c">🧱 P2 (Arrows)</div>
 </div>
 
-<canvas id="mazeCanvas"></canvas>
+<canvas id="maze"></canvas>
 
-<div id="msg-overlay">
-    <h1 id="win-text" style="font-size: 48px;">WINNER!</h1>
-    <p id="sub-text" style="font-size: 20px; color: #aaa;">Fairness verified: Path lengths were equal.</p>
-    <button id="next-btn" onclick="nextLevel()">NEXT LEVEL</button>
+<div id="overlay">
+    <h1 id="status">PLAYER 1 WINS!</h1>
+    <button onclick="startNextLevel()">NEXT LEVEL</button>
 </div>
 
-<div class="controls-container">
-    <div class="dpad" id="p1-ctrl">
-        <div class="btn up" data-key="w">▲</div>
-        <div class="btn left" data-key="a">◀</div>
-        <div class="btn down" data-key="s">▼</div>
-        <div class="btn right" data-key="d">▶</div>
+<div class="controls">
+    <div class="dpad" id="p1-btns">
+        <div class="btn up" onpointerdown="move('p1', 0, -1)">▲</div>
+        <div class="btn left" onpointerdown="move('p1', -1, 0)">◀</div>
+        <div class="btn down" onpointerdown="move('p1', 0, 1)">▼</div>
+        <div class="btn right" onpointerdown="move('p1', 1, 0)">▶</div>
     </div>
-    <div class="dpad" id="p2-ctrl">
-        <div class="btn up" data-key="ArrowUp">▲</div>
-        <div class="btn left" data-key="ArrowLeft">◀</div>
-        <div class="btn down" data-key="ArrowDown">▼</div>
-        <div class="btn right" data-key="ArrowRight">▶</div>
+    <div class="dpad" id="p2-btns">
+        <div class="btn up" onpointerdown="move('p2', 0, -1)">▲</div>
+        <div class="btn left" onpointerdown="move('p2', -1, 0)">◀</div>
+        <div class="btn down" onpointerdown="move('p2', 0, 1)">▼</div>
+        <div class="btn right" onpointerdown="move('p2', 1, 0)">▶</div>
     </div>
 </div>
 
 <script>
-const canvas = document.getElementById("mazeCanvas");
+const canvas = document.getElementById("maze");
 const ctx = canvas.getContext("2d");
 
-let currentLevel = 1;
-const maxLevels = 5;
-let grid = [];
-let cellSize = 0;
-let cols, rows;
-
+let level = 1;
+let size, grid, cellSize;
 const p1 = { x: 1, y: 1, icon: '🦋' };
 const p2 = { x: 0, y: 0, icon: '🧱' };
 
-function generateSymmetricalMaze(size) {
-    cols = size; rows = size;
-    grid = Array.from({ length: rows }, () => Array(cols).fill(0));
+function buildMaze(dim) {
+    size = dim;
+    grid = Array.from({ length: size }, () => Array(size).fill(0));
 
-    const halfR = Math.floor(rows / 2);
-    
-    // Recursive Backtracker on first half
-    function walk(x, y) {
-        grid[y][x] = 1;
-        const dirs = [[0, -2], [0, 2], [-2, 0], [2, 0]].sort(() => Math.random() - 0.5);
-        
+    // Carve logic (Recursive Backtracker)
+    function carve(cx, cy) {
+        const dirs = [[0, 1], [0, -1], [1, 0], [-1, 0]].sort(() => Math.random() - 0.5);
+        grid[cy][cx] = 1;
+
         for (let [dx, dy] of dirs) {
-            let nx = x + dx, ny = y + dy;
-            // Stay within top half bounds roughly
-            if (nx >= 0 && nx < cols && ny >= 0 && ny < rows && grid[ny][nx] === 0) {
-                grid[y + dy / 2][x + dx / 2] = 1;
-                walk(nx, ny);
+            let nx = cx + dx * 2, ny = cy + dy * 2;
+            if (nx > 0 && nx < size - 1 && ny > 0 && ny < size - 1 && grid[ny][nx] === 0) {
+                grid[cy + dy][cx + dx] = 1;
+                carve(nx, ny);
             }
         }
     }
-    walk(1, 1);
 
-    // Apply Rotational Symmetry (180 degrees)
-    for (let y = 0; y < rows; y++) {
-        for (let x = 0; x < cols; x++) {
+    carve(1, 1);
+
+    // Diagonal Symmetry: Mirror P1's side to P2
+    for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
             if (grid[y][x] === 1) {
-                grid[rows - 1 - y][cols - 1 - x] = 1;
+                grid[size - 1 - y][size - 1 - x] = 1;
             }
         }
     }
 
-    // Force a path to the center for both
-    let cx = Math.floor(cols / 2);
-    let cy = Math.floor(rows / 2);
-    
-    // Connect P1's side to center
-    grid[cy-1][cx] = 1;
-    grid[cy][cx] = 2; // Goal
-    // Connect P2's side to center (mirrored)
-    grid[cy+1][cx] = 1;
+    // Force Center Goal
+    const mid = Math.floor(size / 2);
+    grid[mid][mid] = 2; // Goal
+    // Connect path to goal
+    grid[mid-1][mid] = 1; 
+    grid[mid+1][mid] = 1;
 }
 
-function initLevel() {
-    // Sizes must be odd for center-symmetry: 13, 17, 21, 25, 29
-    const size = 13 + (currentLevel - 1) * 4; 
-    generateSymmetricalMaze(size);
+function initGame() {
+    const mazeDim = 11 + (level * 4); // 15, 19, 23, 27, 31
+    buildMaze(mazeDim);
     
     p1.x = 1; p1.y = 1;
-    p2.x = cols - 2; p2.y = rows - 2;
-    
-    const displaySize = Math.min(window.innerWidth * 0.9, window.innerHeight * 0.55);
-    canvas.width = displaySize;
-    canvas.height = displaySize;
-    cellSize = canvas.width / cols;
+    p2.x = size - 2; p2.y = size - 2;
 
-    document.getElementById("level-display").textContent = `Level ${currentLevel}/${maxLevels}`;
-    document.getElementById("msg-overlay").style.display = "none";
+    const screenSpace = Math.min(window.innerWidth * 0.9, window.innerHeight * 0.5);
+    canvas.width = screenSpace;
+    canvas.height = screenSpace;
+    cellSize = canvas.width / size;
+
+    document.getElementById("lvl-card").innerText = `Level ${level}/5`;
+    document.getElementById("overlay").style.display = "none";
 }
 
 function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-            if (grid[r][c] === 0) {
-                // Wall texture
-                ctx.fillStyle = "#2d3436";
-                ctx.fillRect(c * cellSize, r * cellSize, cellSize, cellSize);
-                ctx.strokeStyle = "#636e72";
-                ctx.lineWidth = 1;
-                ctx.strokeRect(c * cellSize + 2, r * cellSize + 2, cellSize - 4, cellSize - 4);
-            } else {
-                // Path
-                ctx.fillStyle = "#dfe6e9";
-                ctx.fillRect(c * cellSize, r * cellSize, cellSize, cellSize);
+    ctx.clearRect(0,0, canvas.width, canvas.height);
+    
+    for(let y=0; y<size; y++){
+        for(let x=0; x<size; x++){
+            if(grid[y][x] === 0) {
+                ctx.fillStyle = "#282a36"; // Wall
+                ctx.fillRect(x*cellSize, y*cellSize, cellSize, cellSize);
+            } else if (grid[y][x] === 2) {
+                ctx.fillStyle = "#f1fa8c"; // Goal
+                ctx.fillRect(x*cellSize, y*cellSize, cellSize, cellSize);
+                ctx.font = `${cellSize*0.7}px Arial`;
+                ctx.textAlign = "center";
+                ctx.fillText("🏆", (x+0.5)*cellSize, (y+0.65)*cellSize);
             }
         }
     }
 
-    // Goal
-    ctx.font = `${cellSize * 0.8}px Arial`;
+    // Draw Icons
+    ctx.font = `${cellSize*0.8}px Arial`;
     ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText("🏆", (Math.floor(cols/2) + 0.5) * cellSize, (Math.floor(rows/2) + 0.5) * cellSize);
-
-    // Players
-    ctx.font = `${cellSize * 0.8}px Arial`;
-    ctx.fillText(p1.icon, (p1.x + 0.5) * cellSize, (p1.y + 0.5) * cellSize);
-    ctx.fillText(p2.icon, (p2.x + 0.5) * cellSize, (p2.y + 0.5) * cellSize);
+    ctx.fillText(p1.icon, (p1.x+0.5)*cellSize, (p1.y+0.8)*cellSize);
+    ctx.fillText(p2.icon, (p2.x+0.5)*cellSize, (p2.y+0.8)*cellSize);
 }
 
-function move(player, dx, dy) {
-    let nx = player.x + dx;
-    let ny = player.y + dy;
+function move(playerID, dx, dy) {
+    const char = (playerID === 'p1') ? p1 : p2;
+    const nx = char.x + dx;
+    const ny = char.y + dy;
 
-    if (nx >= 0 && nx < cols && ny >= 0 && ny < rows && grid[ny][nx] !== 0) {
-        player.x = nx;
-        player.y = ny;
-        if (grid[ny][nx] === 2) checkWin(player === p1 ? "BUTTERFLY" : "LEGO BRICK");
+    if(nx >= 0 && nx < size && ny >= 0 && ny < size && grid[ny][nx] !== 0) {
+        char.x = nx;
+        char.y = ny;
+        if(grid[ny][nx] === 2) win(playerID);
     }
 }
 
-function checkWin(winner) {
-    document.getElementById("msg-overlay").style.display = "flex";
-    document.getElementById("win-text").textContent = `${winner} WINS!`;
-    if (currentLevel === maxLevels) {
-        document.getElementById("next-btn").textContent = "PLAY AGAIN";
-    }
+function win(id) {
+    const winner = (id === 'p1') ? "BUTTERFLY" : "LEGO BRICK";
+    document.getElementById("status").innerText = winner + " WINS!";
+    document.getElementById("overlay").style.display = "flex";
 }
 
-function nextLevel() {
-    if (currentLevel < maxLevels) currentLevel++;
-    else currentLevel = 1;
-    initLevel();
+function startNextLevel() {
+    if(level < 5) level++;
+    else level = 1;
+    initGame();
 }
 
-// Input listeners
+// Keyboard Listeners
 window.addEventListener("keydown", (e) => {
-    const key = e.key;
-    if (key === 'w') move(p1, 0, -1);
-    if (key === 's') move(p1, 0, 1);
-    if (key === 'a') move(p1, -1, 0);
-    if (key === 'd') move(p1, 1, 0);
-    if (key === 'ArrowUp') move(p2, 0, -1);
-    if (key === 'ArrowDown') move(p2, 0, 1);
-    if (key === 'ArrowLeft') move(p2, -1, 0);
-    if (key === 'ArrowRight') move(p2, 1, 0);
-});
-
-document.querySelectorAll('.btn').forEach(btn => {
-    btn.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        const key = btn.getAttribute('data-key');
-        window.dispatchEvent(new KeyboardEvent('keydown', { key: key }));
-    }, {passive: false});
+    switch(e.key.toLowerCase()) {
+        case 'w': move('p1', 0, -1); break;
+        case 's': move('p1', 0, 1); break;
+        case 'a': move('p1', -1, 0); break;
+        case 'd': move('p1', 1, 0); break;
+        case 'arrowup': move('p2', 0, -1); break;
+        case 'arrowdown': move('p2', 0, 1); break;
+        case 'arrowleft': move('p2', -1, 0); break;
+        case 'arrowright': move('p2', 1, 0); break;
+    }
 });
 
 function loop() {
@@ -221,7 +183,7 @@ function loop() {
     requestAnimationFrame(loop);
 }
 
-initLevel();
+initGame();
 loop();
 </script>
 </body>
