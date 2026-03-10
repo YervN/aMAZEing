@@ -142,8 +142,8 @@
     <div id="startScreen">
         <h2>⚔️ BATTLE CITY ⚔️</h2>
         <p style="color: #00ff00; font-size: 1.5em;">PROTECT YOUR BASE!</p>
-        <p>Player 1 (🟢 Green Tank) uses <strong>WASD</strong> to move and <strong>SPACE</strong> to shoot!</p>
-        <p>Player 2 (🦋 Yellow Butterfly) uses <strong>ARROW KEYS</strong> to move and <strong>ENTER</strong> to shoot!</p>
+        <p>Player 1 (🟢 Green Tank) uses <strong>WASD</strong> to move, <strong>TAB</strong> to shoot, and <strong>SPACE</strong> for grenade!</p>
+        <p>Player 2 (🦋 Yellow Butterfly) uses <strong>ARROW KEYS</strong> to move, <strong>PAGE UP</strong> to shoot, and <strong>ENTER</strong> for grenade!</p>
         <p style="color: #ffff00;">Destroy enemy tanks and protect the fortress! 🏰</p>
         <p>🧱 Bricks can be destroyed | 🩶 Steel walls are indestructible</p>
         <button onclick="startGame()">START GAME</button>
@@ -163,12 +163,14 @@
         <div class="player-controls">
             <strong style="color: #00ff00;">Player 1 (Green Tank)</strong><br>
             Move: <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd><br>
-            Shoot: <kbd>SPACE</kbd>
+            Shoot: <kbd>TAB</kbd><br>
+            Grenade: <kbd>SPACE</kbd>
         </div>
         <div class="player-controls">
             <strong style="color: #ff00ff;">Player 2 (Butterfly)</strong><br>
             Move: <kbd>↑</kbd> <kbd>←</kbd> <kbd>↓</kbd> <kbd>→</kbd><br>
-            Shoot: <kbd>ENTER</kbd>
+            Shoot: <kbd>PGUP</kbd><br>
+            Grenade: <kbd>ENTER</kbd>
         </div>
         <div class="player-controls">
             <strong style="color: #ffff00;">Power-ups</strong><br>
@@ -205,6 +207,8 @@ const players = {
         bulletSpeed: 3,
         shootCooldown: 0,
         shootDelay: 15,
+        grenadeCooldown: 0,
+        grenadeDelay: 40,
         isDead: false,
         emoji: '🟢'
     },
@@ -220,6 +224,8 @@ const players = {
         bulletSpeed: 3,
         shootCooldown: 0,
         shootDelay: 15,
+        grenadeCooldown: 0,
+        grenadeDelay: 40,
         isDead: false,
         emoji: '🦋'
     }
@@ -245,7 +251,7 @@ let powerUps = [];
 const keys = {};
 window.addEventListener('keydown', (e) => {
     keys[e.key] = true;
-    if (['w', 'a', 's', 'd', ' ', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter'].includes(e.key)) {
+    if (['w', 'a', 's', 'd', ' ', 'Tab', 'PageUp', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter'].includes(e.key)) {
         e.preventDefault();
     }
 });
@@ -257,34 +263,55 @@ window.addEventListener('keyup', (e) => {
 function initWalls() {
     walls = [];
     
-    // Create classic Battle City-style map with brick and steel walls
+    // Maze-focused layout: steel creates forced turns, bricks allow shortcut openings.
     const mapLayout = [
-        // Perimeter walls
-        ...createWallRow(0, 0, 19, 'steel'),
-        ...createWallRow(19, 0, 19, 'steel'),
-        ...createWallColumn(0, 0, 19, 'steel'),
-        ...createWallColumn(19, 0, 19, 'steel'),
-        
-        // Interior brick maze
-        ...createWallRow(2, 2, 5, 'brick'),
-        ...createWallRow(2, 6, 5, 'brick'),
-        ...createWallRow(2, 10, 5, 'brick'),
-        ...createWallRow(2, 14, 5, 'brick'),
-        
-        ...createWallRow(14, 2, 5, 'brick'),
-        ...createWallRow(14, 6, 5, 'brick'),
-        ...createWallRow(14, 10, 5, 'brick'),
-        ...createWallRow(14, 14, 5, 'brick'),
-        
-        ...createWallColumn(7, 2, 5, 'brick'),
-        ...createWallColumn(12, 2, 5, 'brick'),
-        ...createWallColumn(7, 10, 5, 'brick'),
-        ...createWallColumn(12, 10, 5, 'brick'),
-        
-        // Pattern in middle
-        ...createWallRow(8, 8, 3, 'brick'),
-        ...createWallRow(10, 8, 3, 'brick'),
-        ...createWallColumn(9, 7, 5, 'steel'),
+        // Perimeter steel ring
+        ...createWallRow(0, 0, 20, 'steel'),
+        ...createWallRow(19, 0, 20, 'steel'),
+        ...createWallColumn(0, 0, 20, 'steel'),
+        ...createWallColumn(19, 0, 20, 'steel'),
+
+        // Lighter steel maze: fewer hard barriers with larger empty movement lanes.
+        ...createWallColumn(5, 2, 4, 'steel'),
+        ...createWallColumn(5, 10, 4, 'steel'),
+        ...createWallColumn(5, 16, 2, 'steel'),
+
+        ...createWallColumn(10, 1, 3, 'steel'),
+        ...createWallColumn(10, 6, 3, 'steel'),
+        ...createWallColumn(10, 11, 3, 'steel'),
+        ...createWallColumn(10, 15, 3, 'steel'),
+
+        ...createWallColumn(14, 3, 4, 'steel'),
+        ...createWallColumn(14, 9, 4, 'steel'),
+        ...createWallColumn(14, 16, 2, 'steel'),
+
+        // Sparse crossbars keep maze feel without choking movement.
+        ...createWallRow(6, 2, 2, 'steel'),
+        ...createWallRow(6, 7, 2, 'steel'),
+        ...createWallRow(6, 12, 2, 'steel'),
+        ...createWallRow(6, 16, 2, 'steel'),
+
+        ...createWallRow(12, 3, 2, 'steel'),
+        ...createWallRow(12, 8, 2, 'steel'),
+        ...createWallRow(12, 13, 2, 'steel'),
+
+        ...createWallRow(16, 5, 2, 'steel'),
+        ...createWallRow(16, 10, 2, 'steel'),
+        ...createWallRow(16, 15, 2, 'steel'),
+
+        // Destructible brick shortcut doors between maze lanes
+        ...createWallRow(3, 5, 2, 'brick'),
+        ...createWallRow(3, 13, 2, 'brick'),
+        ...createWallRow(7, 9, 2, 'brick'),
+        ...createWallRow(8, 2, 2, 'brick'),
+        ...createWallRow(8, 14, 2, 'brick'),
+        ...createWallRow(12, 5, 2, 'brick'),
+        ...createWallRow(12, 13, 2, 'brick'),
+        ...createWallRow(14, 9, 2, 'brick'),
+        ...createWallRow(15, 3, 2, 'brick'),
+        ...createWallRow(15, 13, 2, 'brick'),
+        ...createWallRow(17, 6, 2, 'brick'),
+        ...createWallRow(17, 11, 2, 'brick'),
     ];
     
     mapLayout.forEach(w => walls.push(w));
@@ -349,13 +376,23 @@ function spawnEnemyWave(waveNum) {
             shootDelay: 300,
             isDead: false,
             emoji: '🎖️',
-            patrolWaypoint: 0,
-            waypointTimer: 0
+            direction: randomCardinalDirection(),
+            moveDecisionCooldown: 40 + Math.floor(Math.random() * 80)
         });
     }
 }
 
-function updatePlayer(player, moveKeys, shootKey) {
+function randomCardinalDirection() {
+    const dirs = [
+        {x: 1, y: 0, angle: 0},
+        {x: -1, y: 0, angle: Math.PI},
+        {x: 0, y: 1, angle: Math.PI / 2},
+        {x: 0, y: -1, angle: -Math.PI / 2}
+    ];
+    return dirs[Math.floor(Math.random() * dirs.length)];
+}
+
+function updatePlayer(player, moveKeys, shootKey, grenadeKey) {
     if (player.isDead) return;
 
     // Rotation and movement
@@ -411,71 +448,74 @@ function updatePlayer(player, moveKeys, shootKey) {
         }
     }
 
+    // Grenade fires a radial burst in all directions.
+    if (keys[grenadeKey] && player.grenadeCooldown <= 0) {
+        useGrenade(player);
+        player.grenadeCooldown = player.grenadeDelay;
+    }
+
     player.shootCooldown--;
+    player.grenadeCooldown--;
+}
+
+function useGrenade(player) {
+    const cx = player.x + player.width / 2;
+    const cy = player.y + player.height / 2;
+    const grenadeRange = TILE_SIZE * 3;
+    const burstCount = 24;
+
+    for (let i = 0; i < burstCount; i++) {
+        const angle = (Math.PI * 2 * i) / burstCount;
+        bullets.push({
+            x: cx,
+            y: cy,
+            width: 6,
+            height: 6,
+            angle: angle,
+            speed: 4.5,
+            owner: player,
+            isGrenade: true,
+            traveled: 0,
+            maxRange: grenadeRange
+        });
+    }
 }
 
 function updateEnemy(enemy) {
     if (enemy.isDead) return;
 
-    // Define patrol waypoints based on grid - classic Battle City patrol routes
-    const waypoints = [
-        {x: 2 * TILE_SIZE, y: 3 * TILE_SIZE},
-        {x: 9 * TILE_SIZE, y: 3 * TILE_SIZE},
-        {x: 17 * TILE_SIZE, y: 3 * TILE_SIZE},
-        {x: 17 * TILE_SIZE, y: 9 * TILE_SIZE},
-        {x: 9 * TILE_SIZE, y: 9 * TILE_SIZE},
-        {x: 2 * TILE_SIZE, y: 9 * TILE_SIZE},
-        {x: 2 * TILE_SIZE, y: 16 * TILE_SIZE},
-        {x: 9 * TILE_SIZE, y: 16 * TILE_SIZE},
-        {x: 17 * TILE_SIZE, y: 16 * TILE_SIZE}
-    ];
-
-    // Switch waypoint if close enough
-    let currentWaypoint = waypoints[enemy.patrolWaypoint % waypoints.length];
-    let dx = currentWaypoint.x - (enemy.x + enemy.width / 2);
-    let dy = currentWaypoint.y - (enemy.y + enemy.height / 2);
-    let distToWaypoint = Math.sqrt(dx * dx + dy * dy);
-
-    if (distToWaypoint < 30) {
-        enemy.patrolWaypoint++;
-        currentWaypoint = waypoints[enemy.patrolWaypoint % waypoints.length];
-        dx = currentWaypoint.x - (enemy.x + enemy.width / 2);
-        dy = currentWaypoint.y - (enemy.y + enemy.height / 2);
+    // Enemies move only in one of four cardinal directions and randomly choose when to switch.
+    if (enemy.moveDecisionCooldown <= 0) {
+        enemy.direction = randomCardinalDirection();
+        enemy.moveDecisionCooldown = 35 + Math.floor(Math.random() * 90);
     }
 
-    // Move towards waypoint
-    let dist = Math.sqrt(dx * dx + dy * dy);
-    if (dist > 0) {
-        enemy.x += (dx / dist) * enemy.speed;
-        enemy.y += (dy / dist) * enemy.speed;
-        enemy.angle = Math.atan2(dy, dx);
-    }
+    const prevX = enemy.x;
+    const prevY = enemy.y;
+    enemy.x += enemy.direction.x * enemy.speed;
+    enemy.y += enemy.direction.y * enemy.speed;
+    enemy.angle = enemy.direction.angle;
 
     // Clamp to screen
     enemy.x = Math.max(TILE_SIZE, Math.min(enemy.x, GAME_WIDTH - TILE_SIZE - enemy.width));
     enemy.y = Math.max(TILE_SIZE, Math.min(enemy.y, GAME_HEIGHT - TILE_SIZE - enemy.height));
 
-    // Wall collision - bounce away
+    // If an enemy bumps into a wall, revert and pick another cardinal direction.
+    let hitWall = false;
     walls.forEach(wall => {
         if (rectCollide(enemy, wall)) {
-            // Push out of wall
-            if (enemy.x < wall.x) enemy.x = wall.x - enemy.width;
-            else if (enemy.x + enemy.width > wall.x + wall.width) enemy.x = wall.x + wall.width;
-            if (enemy.y < wall.y) enemy.y = wall.y - enemy.height;
-            else if (enemy.y + enemy.height > wall.y + wall.height) enemy.y = wall.y + wall.height;
-            // Change waypoint
-            enemy.patrolWaypoint += Math.floor(Math.random() * 2) + 1;
+            hitWall = true;
         }
     });
+    if (hitWall) {
+        enemy.x = prevX;
+        enemy.y = prevY;
+        enemy.direction = randomCardinalDirection();
+        enemy.moveDecisionCooldown = 20 + Math.floor(Math.random() * 40);
+    }
 
-    // Shoot towards base every 5 seconds
+    // Enemies shoot only in their current facing direction (no target tracking).
     if (enemy.shootCooldown <= 0) {
-        let targetX = base.x + base.width / 2;
-        let targetY = base.y + base.height / 2;
-        let tdx = targetX - (enemy.x + enemy.width / 2);
-        let tdy = targetY - (enemy.y + enemy.height / 2);
-        let shootAngle = Math.atan2(tdy, tdx);
-        
         let bx = enemy.x + enemy.width / 2;
         let by = enemy.y + enemy.height / 2;
         bullets.push({
@@ -483,7 +523,7 @@ function updateEnemy(enemy) {
             y: by,
             width: 7,
             height: 7,
-            angle: shootAngle,
+            angle: enemy.direction.angle,
             speed: enemy.bulletSpeed,
             owner: enemy
         });
@@ -491,19 +531,32 @@ function updateEnemy(enemy) {
     }
 
     enemy.shootCooldown--;
+    enemy.moveDecisionCooldown--;
 }
 
 function updateBullets() {
     for (let i = bullets.length - 1; i >= 0; i--) {
         let bullet = bullets[i];
-        bullet.x += Math.cos(bullet.angle) * bullet.speed;
-        bullet.y += Math.sin(bullet.angle) * bullet.speed;
+        const stepX = Math.cos(bullet.angle) * bullet.speed;
+        const stepY = Math.sin(bullet.angle) * bullet.speed;
+        bullet.x += stepX;
+        bullet.y += stepY;
+
+        if (bullet.maxRange) {
+            bullet.traveled += Math.hypot(stepX, stepY);
+            if (bullet.traveled >= bullet.maxRange) {
+                bullets.splice(i, 1);
+                continue;
+            }
+        }
 
         // Check boundaries
         if (bullet.x < 0 || bullet.x > GAME_WIDTH || bullet.y < 0 || bullet.y > GAME_HEIGHT) {
             bullets.splice(i, 1);
             continue;
         }
+
+        let removed = false;
 
         // Check wall collision
         for (let w = walls.length - 1; w >= 0; w--) {
@@ -513,21 +566,25 @@ function updateBullets() {
                     walls.splice(w, 1);
                 }
                 bullets.splice(i, 1);
+                removed = true;
                 break;
             }
         }
+        if (removed) continue;
 
         // Check player collision
         if (bullet.owner !== players.p1 && rectCollide(bullet, players.p1)) {
             players.p1.health--;
             bullets.splice(i, 1);
+            continue;
         } else if (bullet.owner !== players.p2 && rectCollide(bullet, players.p2)) {
             players.p2.health--;
             bullets.splice(i, 1);
+            continue;
         }
 
         // Check enemy collision
-        enemies.forEach((enemy, idx) => {
+        enemies.forEach((enemy) => {
             if (bullet.owner === enemy) return;
             if (rectCollide(bullet, enemy)) {
                 enemy.health--;
@@ -548,8 +605,10 @@ function updateBullets() {
                     }
                 }
                 bullets.splice(i, 1);
+                removed = true;
             }
         });
+        if (removed) continue;
     }
 }
 
@@ -587,28 +646,85 @@ function rectCollide(rect1, rect2) {
 
 function drawPlayer(player) {
     const isP1 = player === players.p1;
+
+    if (!isP1) {
+        // Player 2 is rendered as a butterfly instead of a yellow tank.
+        const cx = player.x + player.width / 2;
+        const cy = player.y + player.height / 2;
+
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(player.angle + Math.PI / 2);
+
+        const wingPulse = 0.88 + Math.sin(Date.now() * 0.015) * 0.14;
+
+        // Upper wings
+        ctx.fillStyle = '#ffd43b';
+        ctx.beginPath();
+        ctx.ellipse(-9, -6, 11 * wingPulse, 8 * wingPulse, -0.4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(9, -6, 11 * wingPulse, 8 * wingPulse, 0.4, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Lower wings
+        ctx.fillStyle = '#ff9f1c';
+        ctx.beginPath();
+        ctx.ellipse(-8, 7, 8 * wingPulse, 6 * wingPulse, 0.2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(8, 7, 8 * wingPulse, 6 * wingPulse, -0.2, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Body
+        ctx.fillStyle = '#5e3d12';
+        ctx.beginPath();
+        ctx.ellipse(0, 1, 3.8, 12, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Antennae
+        ctx.strokeStyle = '#5e3d12';
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.moveTo(-1, -10);
+        ctx.quadraticCurveTo(-5, -17, -8, -16);
+        ctx.moveTo(1, -10);
+        ctx.quadraticCurveTo(5, -17, 8, -16);
+        ctx.stroke();
+
+        // Facing indicator (acts like the old turret/barrel cue)
+        ctx.strokeStyle = '#fff4b8';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, -2);
+        ctx.lineTo(0, -18);
+        ctx.stroke();
+
+        ctx.restore();
+        return;
+    }
     
     ctx.save();
     ctx.translate(player.x + player.width / 2, player.y + player.height / 2);
     
     // Tank body (rectangle)
-    ctx.fillStyle = isP1 ? '#00cc00' : '#ffaa00';
+    ctx.fillStyle = '#00cc00';
     ctx.fillRect(-player.width / 2, -player.height / 2, player.width, player.height);
     
     // Tank tread pattern
-    ctx.fillStyle = isP1 ? '#009900' : '#cc8800';
+    ctx.fillStyle = '#009900';
     ctx.fillRect(-player.width / 2 + 2, -player.height / 2, 3, player.height);
     ctx.fillRect(player.width / 2 - 5, -player.height / 2, 3, player.height);
     
     // Turret (rotates with angle)
     ctx.rotate(player.angle + Math.PI / 2);
-    ctx.fillStyle = isP1 ? '#00ff00' : '#ffff00';
+    ctx.fillStyle = '#00ff00';
     ctx.beginPath();
     ctx.arc(0, 0, player.width / 3, 0, Math.PI * 2);
     ctx.fill();
     
     // Barrel
-    ctx.fillStyle = isP1 ? '#004400' : '#888800';
+    ctx.fillStyle = '#004400';
     ctx.fillRect(-2, -player.width / 2 - 5, 4, player.width / 2);
     
     ctx.restore();
@@ -721,13 +837,13 @@ function drawWalls() {
 
 function drawBullets() {
     bullets.forEach(bullet => {
-        ctx.fillStyle = '#ffff00';
+        ctx.fillStyle = bullet.isGrenade ? '#ff8844' : '#ffff00';
         ctx.beginPath();
         ctx.arc(bullet.x, bullet.y, 3, 0, Math.PI * 2);
         ctx.fill();
         
         // Trail effect
-        ctx.strokeStyle = 'rgba(255, 255, 0, 0.5)';
+        ctx.strokeStyle = bullet.isGrenade ? 'rgba(255, 136, 68, 0.5)' : 'rgba(255, 255, 0, 0.5)';
         ctx.lineWidth = 1.5;
         ctx.beginPath();
         ctx.moveTo(bullet.x, bullet.y);
@@ -786,8 +902,8 @@ function gameLoop() {
     ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
     // Update
-    updatePlayer(players.p1, { up: 'w', down: 's', left: 'a', right: 'd' }, ' ');
-    updatePlayer(players.p2, { up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight' }, 'Enter');
+    updatePlayer(players.p1, { up: 'w', down: 's', left: 'a', right: 'd' }, 'Tab', ' ');
+    updatePlayer(players.p2, { up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight' }, 'PageUp', 'Enter');
     
     enemies = enemies.filter(e => !e.isDead);
     enemies.forEach(updateEnemy);
@@ -843,6 +959,10 @@ function startGame() {
     enemiesDefeated = 0;
     players.p1.health = players.p1.maxHealth;
     players.p2.health = players.p2.maxHealth;
+    players.p1.shootCooldown = 0;
+    players.p2.shootCooldown = 0;
+    players.p1.grenadeCooldown = 0;
+    players.p2.grenadeCooldown = 0;
     players.p1.isDead = false;
     players.p2.isDead = false;
     base.health = base.maxHealth;
