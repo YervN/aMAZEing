@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Neon Hockey - vs Bot</title>
+<style>
+    body { margin: 0; overflow: hidden; background: #050f1a; touch-action: none; }
+    canvas { display: block; }
+    #score {
+        position: absolute;
+        top: 20px;
+        width: 100%;
+        text-align: center;
+        color: white;
+        font-size: 32px;
+        font-weight: bold;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        pointer-events: none;
+        text-shadow: 0 0 10px rgba(0,255,255,0.5);
+    }
+</style>
+</head>
+<body>
+
+<div id="score">0 : 0</div>
+<canvas id="game"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+let score1 = 0;
+let score2 = 0;
+
+const wallThickness = 25;
+const botGoalWidth = canvas.width * 0.78;    // bot has a very big goal
+const playerGoalWidth = botGoalWidth / 5;   // player goal is 5x smaller
+const wallColor = "#0d1b2a";
+const wallBorder = "#00f2ff";
+
+// --- PUCK CONFIGURATION ---
+const pucks = [];
+const numPucks = 4;
+
+function createPuck(index) {
+    return {
+        x: canvas.width / 2 + (index * 40 - 60), // Spread them out slightly
+        y: canvas.height / 2,
+        vx: (Math.random() - 0.5) * 12,
+        vy: (Math.random() - 0.5) * 12,
+        r: 18,
+        color: "#ffffff"
+    };
+}
+
+// Initialize 4 pucks
+for (let i = 0; i < numPucks; i++) {
+    pucks.push(createPuck(i));
+}
+
+const paddle1 = { x: canvas.width / 2, y: canvas.height - 150, r: 45 };
+const paddle2 = { x: canvas.width / 2, y: 150, r: 45 };
+
+function getRandomColor() {
+    const colors = ['#FF0055', '#00FF99', '#00D4FF', '#FFD700', '#FF00FF', '#FFFFFF'];
+    return colors[Math.floor(Math.random() * colors.length)];
+}
+
+function resetPuck(p) {
+    p.x = canvas.width / 2;
+    p.y = canvas.height / 2;
+    p.vx = (Math.random() - 0.5) * 10;
+    p.vy = (Math.random() - 0.5) * 10;
+    p.color = "#ffffff";
+}
+
+function drawCircle(x, y, r, color, glow = false) {
+    ctx.beginPath();
+    if(glow) {
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = color;
+    }
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.closePath();
+}
+
+function drawRink() {
+    // Outer Glow for the whole field
+    ctx.strokeStyle = "rgba(0, 242, 255, 0.1)";
+    ctx.lineWidth = 2;
+    
+    // Center Line
+    ctx.beginPath();
+    ctx.moveTo(wallThickness, canvas.height/2);
+    ctx.lineTo(canvas.width - wallThickness, canvas.height/2);
+    ctx.stroke();
+
+    // Center Circle
+    ctx.beginPath();
+    ctx.arc(canvas.width/2, canvas.height/2, 80, 0, Math.PI*2);
+    ctx.stroke();
+
+    // Goal Creases (Half circles at ends)
+    ctx.beginPath();
+    ctx.arc(canvas.width/2, 0, botGoalWidth / 2, 0, Math.PI);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(canvas.width/2, canvas.height, playerGoalWidth / 2, Math.PI, 0);
+    ctx.stroke();
+}
+
+function handleCollisions(p) {
+    p.x += p.vx;
+    p.y += p.vy;
+
+    let leftBotGoal    = (canvas.width - botGoalWidth) / 2;
+    let rightBotGoal   = (canvas.width + botGoalWidth) / 2;
+    let leftPlayerGoal = (canvas.width - playerGoalWidth) / 2;
+    let rightPlayerGoal= (canvas.width + playerGoalWidth) / 2;
+
+    // Side Walls
+    if (p.x < p.r + wallThickness || p.x > canvas.width - p.r - wallThickness) {
+        p.vx *= -1;
+        p.color = getRandomColor();
+        p.x = p.x < p.r + wallThickness ? p.r + wallThickness : canvas.width - p.r - wallThickness;
+    }
+
+    // Top wall = Bot's goal (big opening), Bottom wall = Player's goal (small opening)
+    if (p.y < p.r + wallThickness) {
+        if (p.x > leftBotGoal && p.x < rightBotGoal) {
+            if (p.y < 0) { score1++; resetPuck(p); }
+        } else {
+            p.vy *= -1;
+            p.color = getRandomColor();
+            p.y = p.r + wallThickness;
+        }
+    } else if (p.y > canvas.height - p.r - wallThickness) {
+        if (p.x > leftPlayerGoal && p.x < rightPlayerGoal) {
+            if (p.y > canvas.height) { score2++; resetPuck(p); }
+        } else {
+            p.vy *= -1;
+            p.color = getRandomColor();
+            p.y = canvas.height - p.r - wallThickness;
+        }
+    }
+
+    // Paddle Collisions
+    [paddle1, paddle2].forEach(pad => {
+        let dx = p.x - pad.x;
+        let dy = p.y - pad.y;
+        let dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < p.r + pad.r) {
+            let angle = Math.atan2(dy, dx);
+            let speed = Math.sqrt(p.vx**2 + p.vy**2) + 0.5; // Gain speed on hit
+            p.vx = Math.cos(angle) * Math.max(speed, 8);
+            p.vy = Math.sin(angle) * Math.max(speed, 8);
+        }
+    });
+}
+
+function drawWalls() {
+    ctx.fillStyle = wallColor;
+    ctx.strokeStyle = wallBorder;
+    ctx.lineWidth = 3;
+
+    let leftBotGoal    = (canvas.width - botGoalWidth) / 2;
+    let rightBotGoal   = (canvas.width + botGoalWidth) / 2;
+    let leftPlayerGoal = (canvas.width - playerGoalWidth) / 2;
+    let rightPlayerGoal= (canvas.width + playerGoalWidth) / 2;
+
+    // Sides
+    ctx.fillRect(0, 0, wallThickness, canvas.height);
+    ctx.strokeRect(0, 0, wallThickness, canvas.height);
+    ctx.fillRect(canvas.width - wallThickness, 0, wallThickness, canvas.height);
+    ctx.strokeRect(canvas.width - wallThickness, 0, wallThickness, canvas.height);
+
+    // Top = Bot's goal (big opening), Bottom = Player's goal (small opening)
+    const sections = [
+        [0, 0, leftBotGoal, wallThickness],
+        [rightBotGoal, 0, canvas.width - rightBotGoal, wallThickness],
+        [0, canvas.height - wallThickness, leftPlayerGoal, wallThickness],
+        [rightPlayerGoal, canvas.height - wallThickness, canvas.width - rightPlayerGoal, wallThickness]
+    ];
+    sections.forEach(s => {
+        ctx.fillRect(...s);
+        ctx.strokeRect(...s);
+    });
+}
+
+function updateBot() {
+    // Find the puck closest to the bot
+    let target = pucks.reduce((closest, p) =>
+        Math.hypot(p.x - paddle2.x, p.y - paddle2.y) <
+        Math.hypot(closest.x - paddle2.x, closest.y - paddle2.y) ? p : closest
+    );
+
+    const botSpeed = 5;
+
+    // Chase puck X
+    let dx = target.x - paddle2.x;
+    if (Math.abs(dx) > botSpeed) paddle2.x += Math.sign(dx) * botSpeed;
+    else paddle2.x = target.x;
+
+    // Chase puck Y if in top half, otherwise return to default defensive position
+    let targetY = target.y < canvas.height / 2 ? target.y : canvas.height / 4;
+    let dy = targetY - paddle2.y;
+    if (Math.abs(dy) > botSpeed) paddle2.y += Math.sign(dy) * botSpeed;
+    else paddle2.y = targetY;
+
+    // Clamp bot to top half
+    paddle2.x = Math.max(wallThickness + paddle2.r, Math.min(paddle2.x, canvas.width - wallThickness - paddle2.r));
+    paddle2.y = Math.max(wallThickness + paddle2.r, Math.min(paddle2.y, canvas.height / 2 - paddle2.r));
+}
+
+function loop() {
+    ctx.fillStyle = "#050f1a";
+    ctx.fillRect(0,0, canvas.width, canvas.height);
+
+    drawRink();
+    drawWalls();
+    updateBot();
+
+    pucks.forEach(p => {
+        handleCollisions(p);
+        drawCircle(p.x, p.y, p.r, p.color, true);
+    });
+
+    drawCircle(paddle1.x, paddle1.y, paddle1.r, "#4CAF50");
+    drawCircle(paddle2.x, paddle2.y, paddle2.r, "#FF5252");
+
+    // Side labels
+    ctx.font = "bold 16px 'Segoe UI', sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillStyle = "rgba(255, 82, 82, 0.75)";
+    ctx.fillText("BOT", canvas.width / 2, wallThickness + 30);
+    ctx.fillStyle = "rgba(76, 175, 80, 0.75)";
+    ctx.fillText("YOU", canvas.width / 2, canvas.height - wallThickness - 10);
+
+    document.getElementById("score").textContent = "BOT " + score2 + "  :  " + score1 + " YOU";
+    requestAnimationFrame(loop);
+}
+
+// Controls — player moves the bottom paddle only; top paddle is controlled by the bot
+canvas.addEventListener("touchmove", e => {
+    e.preventDefault();
+    let rect = canvas.getBoundingClientRect();
+    for (let t of e.touches) {
+        let x = t.clientX - rect.left;
+        let y = t.clientY - rect.top;
+        paddle1.x = Math.max(wallThickness + paddle1.r, Math.min(x, canvas.width - wallThickness - paddle1.r));
+        paddle1.y = Math.max(canvas.height / 2 + paddle1.r, Math.min(y, canvas.height - wallThickness - paddle1.r));
+    }
+}, { passive: false });
+
+canvas.addEventListener("mousemove", e => {
+    let rect = canvas.getBoundingClientRect();
+    let x = e.clientX - rect.left;
+    let y = e.clientY - rect.top;
+    paddle1.x = Math.max(wallThickness + paddle1.r, Math.min(x, canvas.width - wallThickness - paddle1.r));
+    paddle1.y = Math.max(canvas.height / 2 + paddle1.r, Math.min(y, canvas.height - wallThickness - paddle1.r));
+});
+
+loop();
+</script>
+</body>
+</html>

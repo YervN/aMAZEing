@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>aMAZEing Games</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --tg-theme-bg-color: #1a1a2e;
+            --tg-theme-text-color: #e0e0e0;
+            --tg-theme-hint-color: #aaaaaa;
+            --tg-theme-link-color: #64b5f6;
+            --tg-theme-button-color: #6c63ff;
+            --tg-theme-button-text-color: #ffffff;
+            --tg-theme-secondary-bg-color: #16213e;
+            --card-bg: #0f3460;
+            --card-hover: #1a4a7a;
+            --accent-1p: #00c853;
+            --accent-2p: #ff6d00;
+            --accent-utility: #7c4dff;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: var(--tg-theme-bg-color);
+            color: var(--tg-theme-text-color);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* ── Header ── */
+        .header {
+            text-align: center;
+            padding: 24px 16px 8px;
+            position: relative;
+        }
+        .header h1 {
+            font-size: 28px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #6c63ff, #00c853);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 1px;
+        }
+        .header p {
+            color: var(--tg-theme-hint-color);
+            font-size: 13px;
+            margin-top: 4px;
+        }
+
+        /* ── Tabs ── */
+        .tabs {
+            display: flex;
+            gap: 8px;
+            padding: 16px 16px 8px;
+            justify-content: center;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background: var(--tg-theme-bg-color);
+        }
+        .tab-btn {
+            flex: 1;
+            max-width: 160px;
+            padding: 12px 8px;
+            border: none;
+            border-radius: 14px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .tab-btn.tab-1p {
+            background: rgba(0, 200, 83, 0.15);
+            color: var(--accent-1p);
+            border: 2px solid transparent;
+        }
+        .tab-btn.tab-1p.active {
+            background: var(--accent-1p);
+            color: #fff;
+            box-shadow: 0 4px 20px rgba(0, 200, 83, 0.35);
+        }
+        .tab-btn.tab-2p {
+            background: rgba(255, 109, 0, 0.15);
+            color: var(--accent-2p);
+            border: 2px solid transparent;
+        }
+        .tab-btn.tab-2p.active {
+            background: var(--accent-2p);
+            color: #fff;
+            box-shadow: 0 4px 20px rgba(255, 109, 0, 0.35);
+        }
+
+        /* ── Game Grid ── */
+        .games-section {
+            display: none;
+            padding: 12px 16px 32px;
+        }
+        .games-section.active {
+            display: block;
+        }
+        .section-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .badge {
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+        .badge-1p { background: var(--accent-1p); color: #fff; }
+        .badge-2p { background: var(--accent-2p); color: #fff; }
+
+        .game-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
+            gap: 14px;
+        }
+
+        /* ── Game Card ── */
+        .game-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            overflow: hidden;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            cursor: pointer;
+            position: relative;
+        }
+        .game-card:active {
+            transform: scale(0.96);
+        }
+        .game-card:hover {
+            box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+        }
+
+        /* ── Placeholder Image ── */
+        .card-image {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            position: relative;
+            overflow: hidden;
+        }
+        .card-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        /* Placeholder shown when no real image exists */
+        .card-image .placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            background: linear-gradient(135deg, #16213e, #0f3460);
+            color: rgba(255,255,255,0.25);
+            user-select: none;
+        }
+        .player-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 8px;
+            backdrop-filter: blur(4px);
+        }
+        .player-badge.p1 { background: rgba(0,200,83,0.85); color: #fff; }
+        .player-badge.p2 { background: rgba(255,109,0,0.85); color: #fff; }
+
+        .card-body {
+            padding: 10px 12px 14px;
+        }
+        .card-body h3 {
+            font-size: 14px;
+            font-weight: 700;
+            line-height: 1.3;
+            margin-bottom: 4px;
+        }
+        .card-body p {
+            font-size: 11px;
+            color: var(--tg-theme-hint-color);
+            line-height: 1.35;
+        }
+
+        /* ── Play Button ── */
+        .play-btn {
+            display: block;
+            width: calc(100% - 24px);
+            margin: 0 12px 12px;
+            padding: 8px;
+            border: none;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: opacity 0.15s ease;
+        }
+        .play-btn:active { opacity: 0.7; }
+        .play-btn.btn-1p { background: var(--accent-1p); color: #fff; }
+        .play-btn.btn-2p { background: var(--accent-2p); color: #fff; }
+
+        /* ── Utility section ── */
+        .utility-divider {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 24px 0 14px;
+            color: var(--tg-theme-hint-color);
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .utility-divider::before,
+        .utility-divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: rgba(255,255,255,0.1);
+        }
+
+        /* ── Animations ── */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(18px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .game-card {
+            animation: fadeInUp 0.35s ease forwards;
+        }
+        .game-card:nth-child(2) { animation-delay: 0.05s; }
+        .game-card:nth-child(3) { animation-delay: 0.10s; }
+        .game-card:nth-child(4) { animation-delay: 0.15s; }
+        .game-card:nth-child(5) { animation-delay: 0.20s; }
+        .game-card:nth-child(6) { animation-delay: 0.25s; }
+
+        /* ── Haptic feedback area ── */
+        .haptic { -webkit-tap-highlight-color: transparent; }
+
+        /* ── Back button overlay for game view ── */
+        .game-view {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            background: var(--tg-theme-bg-color);
+        }
+        .game-view.active {
+            display: block;
+        }
+        .game-view iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+
+<!-- ══════════ MAIN MENU ══════════ -->
+<div id="menu">
+    <div class="header">
+        <h1>🎮 aMAZEing</h1>
+        <p>Tap a game to play!</p>
+    </div>
+
+    <div class="tabs">
+        <button class="tab-btn tab-1p active haptic" onclick="showTab('1p')">
+            👤 1 Player
+        </button>
+        <button class="tab-btn tab-2p haptic" onclick="showTab('2p')">
+            👥 2 Player
+        </button>
+    </div>
+
+    <!-- ── 1 PLAYER GAMES ── -->
+    <div id="section-1p" class="games-section active">
+        <div class="section-title">Solo Games <span class="badge badge-1p">1P</span></div>
+        <div class="game-grid" id="grid-1p"></div>
+
+        <!-- Utilities -->
+        <div class="utility-divider">🛠️ Utilities</div>
+        <div class="game-grid" id="grid-utility"></div>
+    </div>
+
+    <!-- ── 2 PLAYER GAMES ── -->
+    <div id="section-2p" class="games-section">
+        <div class="section-title">Multiplayer Games <span class="badge badge-2p">2P</span></div>
+        <div class="game-grid" id="grid-2p"></div>
+    </div>
+</div>
+
+<!-- ══════════ GAME VIEW (iframe) ══════════ -->
+<div id="gameView" class="game-view">
+    <iframe id="gameFrame" sandbox="allow-scripts allow-same-origin allow-popups" title="Game"></iframe>
+</div>
+
+<script>
+// ─── Telegram Web App Init ───
+const tg = window.Telegram?.WebApp;
+if (tg) {
+    tg.ready();
+    tg.expand();
+    // Apply Telegram theme colours if available
+    const root = document.documentElement.style;
+    if (tg.themeParams.bg_color)           root.setProperty('--tg-theme-bg-color',           tg.themeParams.bg_color);
+    if (tg.themeParams.text_color)         root.setProperty('--tg-theme-text-color',         tg.themeParams.text_color);
+    if (tg.themeParams.hint_color)         root.setProperty('--tg-theme-hint-color',         tg.themeParams.hint_color);
+    if (tg.themeParams.button_color)       root.setProperty('--tg-theme-button-color',       tg.themeParams.button_color);
+    if (tg.themeParams.button_text_color)  root.setProperty('--tg-theme-button-text-color',  tg.themeParams.button_text_color);
+    if (tg.themeParams.secondary_bg_color) root.setProperty('--tg-theme-secondary-bg-color', tg.themeParams.secondary_bg_color);
+}
+
+// ─── Game Data ───
+const games = [
+    // ── 1 Player ──
+    {
+        id: "star-wars",
+        title: "Sci-Fi 2D Shooter",
+        desc: "Defend against enemy waves in space!",
+        file: "star-wars.html",
+        players: "1p",
+        emoji: "🚀",
+        // Replace placeholder with real image:
+        // image: "images/star-wars.png"
+        image: null
+    },
+    {
+        id: "airhockey-v3",
+        title: "Neon Hockey vs Bot",
+        desc: "Air hockey against an AI bot",
+        file: "Airhockey_v3.html",
+        players: "1p",
+        emoji: "🤖",
+        image: null
+    },
+    {
+        id: "escape-maze",
+        title: "Escape the Maze",
+        desc: "Navigate the maze before time runs out",
+        file: "escape_the_maze_single_file.html",
+        players: "1p",
+        emoji: "🏃",
+        image: null
+    },
+
+    // ── 2 Player ──
+    {
+        id: "archers",
+        title: "Two Archers: Touch Duel",
+        desc: "Archery duel with wind mechanics",
+        file: "2p_archers_touch_game.html",
+        players: "2p",
+        emoji: "🏹",
+        image: null
+    },
+    {
+        id: "labyrinth",
+        title: "Mega Labyrinth",
+        desc: "Race to the center through 5 mazes",
+        file: "2p_Labrynth.html",
+        players: "2p",
+        emoji: "🌀",
+        image: null
+    },
+    {
+        id: "airhockey-glow",
+        title: "Touch Air Hockey",
+        desc: "Classic air hockey with glow effects",
+        file: "Air-hockey-glow.html",
+        players: "2p",
+        emoji: "🏒",
+        image: null
+    },
+    {
+        id: "airhockey-v2",
+        title: "4-Puck Neon Hockey",
+        desc: "Neon hockey with 4 simultaneous pucks",
+        file: "Airhockey_v2.html",
+        players: "2p",
+        emoji: "💥",
+        image: null
+    },
+    {
+        id: "monster-trucks",
+        title: "Monster Truck Mud-Race",
+        desc: "Oval-track racing, 4 laps to win!",
+        file: "monster_trucks.html",
+        players: "2p",
+        emoji: "🚛",
+        image: null
+    },
+    {
+        id: "peppa-pig",
+        title: "Peppa's Star Adventure",
+        desc: "Co-op platformer with 10 levels",
+        file: "peppa_pig.html",
+        players: "2p",
+        emoji: "🐷",
+        image: null
+    },
+    {
+        id: "peppa-pig-v2",
+        title: "Peppa's Star Collector",
+        desc: "Jetpack platformer across 6 worlds",
+        file: "peppa_pig_v2.html",
+        players: "2p",
+        emoji: "⭐",
+        image: null
+    },
+    {
+        id: "roman-ttt",
+        title: "Roman Tic Tac Toe",
+        desc: "SPQR themed strategy game",
+        file: "roman_tic_tac_toe_index.html",
+        players: "2p",
+        emoji: "⚔️",
+        image: null
+    },
+    {
+        id: "tank-game",
+        title: "Battle City",
+        desc: "Co-op tank defense against waves",
+        file: "tank_game.html",
+        players: "2p",
+        emoji: "🪖",
+        image: null
+    },
+
+    // ── Utility ──
+    {
+        id: "qr-code",
+        title: "QR Code Generator",
+        desc: "Create custom QR codes",
+        file: "custom_qr_code_generator.html",
+        players: "utility",
+        emoji: "📱",
+        image: null
+    }
+];
+
+// ─── Render Cards ───
+function createCard(game) {
+    const playerClass = game.players === '2p' ? 'p2' : 'p1';
+    const playerLabel = game.players === '2p' ? '2P' : game.players === '1p' ? '1P' : '🛠️';
+    const btnClass    = game.players === '2p' ? 'btn-2p' : 'btn-1p';
+
+    const imageHTML = game.image
+        ? `<img src="${encodeURI(game.image)}" alt="${game.title}" loading="lazy">`
+        : `<div class="placeholder">${game.emoji}</div>`;
+
+    const card = document.createElement('div');
+    card.className = 'game-card';
+    card.innerHTML = `
+        <div class="card-image">
+            ${imageHTML}
+            <span class="player-badge ${playerClass}">${playerLabel}</span>
+        </div>
+        <div class="card-body">
+            <h3>${game.title}</h3>
+            <p>${game.desc}</p>
+        </div>
+        <button class="play-btn ${btnClass} haptic">▶ Play</button>
+    `;
+    card.querySelector('.play-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        launchGame(game);
+    });
+    card.addEventListener('click', () => launchGame(game));
+    return card;
+}
+
+function renderGames() {
+    const grid1p      = document.getElementById('grid-1p');
+    const grid2p      = document.getElementById('grid-2p');
+    const gridUtility = document.getElementById('grid-utility');
+
+    games.forEach(game => {
+        const card = createCard(game);
+        if (game.players === '1p')         grid1p.appendChild(card);
+        else if (game.players === '2p')    grid2p.appendChild(card);
+        else if (game.players === 'utility') gridUtility.appendChild(card);
+    });
+}
+
+// ─── Tab Switching ───
+function showTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.games-section').forEach(s => s.classList.remove('active'));
+
+    document.querySelector(`.tab-${tab}`).classList.add('active');
+    document.getElementById(`section-${tab}`).classList.add('active');
+
+    if (tg?.HapticFeedback) tg.HapticFeedback.selectionChanged();
+}
+
+// ─── Launch Game ───
+function launchGame(game) {
+    const gameView  = document.getElementById('gameView');
+    const gameFrame = document.getElementById('gameFrame');
+    const menu      = document.getElementById('menu');
+
+    gameFrame.src = game.file;
+    gameView.classList.add('active');
+    menu.style.display = 'none';
+
+    // Telegram back button
+    if (tg?.BackButton) {
+        tg.BackButton.show();
+        tg.BackButton.onClick(closeGame);
+    }
+
+    if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+}
+
+function closeGame() {
+    const gameView  = document.getElementById('gameView');
+    const gameFrame = document.getElementById('gameFrame');
+    const menu      = document.getElementById('menu');
+
+    gameFrame.src = '';
+    gameView.classList.remove('active');
+    menu.style.display = '';
+
+    if (tg?.BackButton) {
+        tg.BackButton.hide();
+        tg.BackButton.offClick(closeGame);
+    }
+}
+
+// ─── Init ───
+renderGames();
+</script>
+</body>
+</html>

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generate Placeholder Images</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            padding: 24px;
+        }
+        h1 { text-align: center; margin-bottom: 8px; }
+        .subtitle { text-align: center; color: #aaa; margin-bottom: 32px; font-size: 14px; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .card {
+            background: #0f3460;
+            border-radius: 16px;
+            overflow: hidden;
+            text-align: center;
+        }
+        .card canvas {
+            display: block;
+            width: 100%;
+            cursor: pointer;
+        }
+        .card .info {
+            padding: 10px;
+        }
+        .card .info h3 { font-size: 14px; margin-bottom: 4px; }
+        .card .info code {
+            font-size: 11px;
+            color: #aaa;
+            word-break: break-all;
+        }
+        .card button {
+            margin: 8px 10px 12px;
+            padding: 8px 16px;
+            background: #6c63ff;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+        }
+        .card button:hover { opacity: 0.85; }
+        .instructions {
+            max-width: 800px;
+            margin: 0 auto 32px;
+            background: #16213e;
+            border-radius: 12px;
+            padding: 20px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .instructions ol { padding-left: 20px; }
+        .instructions code { background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h1>🖼️ Game Image Placeholder Generator</h1>
+    <p class="subtitle">Click "Download PNG" to save each placeholder, then replace with AI-generated art</p>
+
+    <div class="instructions">
+        <strong>How to add real images:</strong>
+        <ol>
+            <li>Use an AI image generator (DALL-E, Midjourney, etc.) to create a square thumbnail for each game</li>
+            <li>Save the image as <code>images/[game-id].png</code> (filenames shown below each card)</li>
+            <li>In <code>index.html</code>, find the game entry and change <code>image: null</code> to <code>image: "images/[game-id].png"</code></li>
+        </ol>
+    </div>
+
+    <div class="grid" id="grid"></div>
+
+    <script>
+    const games = [
+        { id: "star-wars",       title: "Sci-Fi 2D Shooter",         emoji: "🚀", color1: "#0d1b2a", color2: "#1b263b", accent: "#e0e1dd" },
+        { id: "airhockey-v3",    title: "Neon Hockey vs Bot",        emoji: "🤖", color1: "#0a0a23", color2: "#1a1a3e", accent: "#00f0ff" },
+        { id: "escape-maze",     title: "Escape the Maze",           emoji: "🏃", color1: "#1b4332", color2: "#2d6a4f", accent: "#95d5b2" },
+        { id: "archers",         title: "Two Archers: Touch Duel",   emoji: "🏹", color1: "#3c1518", color2: "#69140e", accent: "#f2a541" },
+        { id: "labyrinth",       title: "Mega Labyrinth",            emoji: "🌀", color1: "#1a0533", color2: "#2d0a4e", accent: "#c77dff" },
+        { id: "airhockey-glow",  title: "Touch Air Hockey",          emoji: "🏒", color1: "#00171f", color2: "#003459", accent: "#00a8e8" },
+        { id: "airhockey-v2",    title: "4-Puck Neon Hockey",        emoji: "💥", color1: "#10002b", color2: "#240046", accent: "#ff6d00" },
+        { id: "monster-trucks",  title: "Monster Truck Mud-Race",    emoji: "🚛", color1: "#3d2b1f", color2: "#5c4033", accent: "#dda15e" },
+        { id: "peppa-pig",       title: "Peppa's Star Adventure",    emoji: "🐷", color1: "#590d22", color2: "#800f2f", accent: "#ffb3c6" },
+        { id: "peppa-pig-v2",    title: "Peppa's Star Collector",    emoji: "⭐", color1: "#3a0ca3", color2: "#4361ee", accent: "#f7d716" },
+        { id: "roman-ttt",       title: "Roman Tic Tac Toe",         emoji: "⚔️", color1: "#3d0c02", color2: "#780000", accent: "#ffd700" },
+        { id: "tank-game",       title: "Battle City",               emoji: "🪖", color1: "#283618", color2: "#3a5a40", accent: "#a3b18a" },
+        { id: "qr-code",         title: "QR Code Generator",         emoji: "📱", color1: "#1d2d44", color2: "#3e5c76", accent: "#ffffff" },
+    ];
+
+    const SIZE = 400;
+
+    function drawPlaceholder(canvas, game) {
+        canvas.width  = SIZE;
+        canvas.height = SIZE;
+        const ctx = canvas.getContext('2d');
+
+        // Gradient background
+        const grad = ctx.createLinearGradient(0, 0, SIZE, SIZE);
+        grad.addColorStop(0, game.color1);
+        grad.addColorStop(1, game.color2);
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, SIZE, SIZE);
+
+        // Decorative circles
+        ctx.globalAlpha = 0.07;
+        ctx.fillStyle = game.accent;
+        ctx.beginPath(); ctx.arc(SIZE*0.8, SIZE*0.2, 120, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(SIZE*0.2, SIZE*0.8, 90,  0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = 1;
+
+        // Emoji
+        ctx.font = '100px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(game.emoji, SIZE/2, SIZE/2 - 30);
+
+        // Title
+        ctx.fillStyle = game.accent;
+        ctx.font = 'bold 22px -apple-system, sans-serif';
+        ctx.fillText(game.title, SIZE/2, SIZE/2 + 60);
+
+        // "Placeholder" label
+        ctx.fillStyle = 'rgba(255,255,255,0.3)';
+        ctx.font = '13px sans-serif';
+        ctx.fillText('PLACEHOLDER — Replace with AI art', SIZE/2, SIZE - 24);
+    }
+
+    function downloadPNG(canvas, filename) {
+        const link = document.createElement('a');
+        link.download = filename;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    }
+
+    const grid = document.getElementById('grid');
+    games.forEach(game => {
+        const card = document.createElement('div');
+        card.className = 'card';
+
+        const canvas = document.createElement('canvas');
+        drawPlaceholder(canvas, game);
+
+        const info = document.createElement('div');
+        info.className = 'info';
+        info.innerHTML = `<h3>${game.title}</h3><code>images/${game.id}.png</code>`;
+
+        const btn = document.createElement('button');
+        btn.textContent = '⬇ Download PNG';
+        btn.onclick = () => downloadPNG(canvas, `${game.id}.png`);
+
+        card.appendChild(canvas);
+        card.appendChild(info);
+        card.appendChild(btn);
+        grid.appendChild(card);
+    });
+    </script>
+</body>
+</html>
