@@ -2,180 +2,229 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>2D Tank Defense - Protect the Base</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        
+
         body {
-            background: linear-gradient(135deg, #1a1a2e, #0f3460);
+            background: #0a0a1a;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            min-height: 100vh;
+            height: 100vh;
+            width: 100vw;
             font-family: Arial, sans-serif;
             color: white;
-            padding: 20px;
+            overflow: hidden;
+            touch-action: none;
         }
 
-        h1 {
-            font-size: 2.5em;
-            margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
-            color: #00ff00;
-        }
-
-        #gameContainer {
-            position: relative;
-            width: 800px;
-            height: 800px;
-            background: #0a0a0a;
-            border: 4px solid #00ff00;
-            box-shadow: 0 0 30px rgba(0, 255, 0, 0.5);
-            margin-bottom: 20px;
-        }
-
-        canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            display: block;
-            cursor: crosshair;
-        }
-
+        /* ── Top bar ── */
         #ui {
+            position: absolute;
+            top: 0; left: 0; right: 0;
             display: flex;
             justify-content: space-around;
-            width: 800px;
-            margin-bottom: 20px;
-            font-size: 1.2em;
+            padding: 6px 4px;
+            font-size: clamp(11px, 2.5vw, 16px);
             font-weight: bold;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.9);
+            background: rgba(0,0,0,0.55);
+            z-index: 20;
         }
-
         #uiP1 { color: #00ff00; }
         #uiP2 { color: #ff00ff; }
         #uiBase { color: #ffff00; }
 
-        #gameOverScreen, #startScreen {
-            position: absolute;
-            top: 0;
-            left: 0;
+        /* ── Main layout: [P1 pad] [canvas] [P2 pad] ── */
+        #gameWrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100vw;
+            height: 100vh;
+            gap: 2px;
+        }
+
+        #gameContainer {
+            position: relative;
+            background: #0a0a0a;
+            border: 2px solid #00ff00;
+            box-shadow: 0 0 20px rgba(0,255,0,0.35);
+            flex-shrink: 1;
+            /* size set by JS */
+        }
+        canvas {
+            display: block;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.95);
+        }
+
+        #gameOverScreen, #startScreen {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95);
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             z-index: 1000;
             text-align: center;
+            padding: 16px;
         }
+        #gameOverScreen h2, #startScreen h2 { font-size: clamp(1.4em, 5vw, 3em); margin-bottom: 12px; }
+        #gameOverScreen p, #startScreen p { font-size: clamp(0.8em, 2.5vw, 1.3em); margin: 6px 0; max-width: 90%; }
 
-        #gameOverScreen h2, #startScreen h2 {
-            font-size: 3em;
-            margin-bottom: 20px;
-        }
-
-        #gameOverScreen p, #startScreen p {
-            font-size: 1.3em;
-            margin: 10px 0;
-            max-width: 700px;
-        }
-
-        button {
-            margin-top: 30px;
-            padding: 15px 40px;
-            font-size: 1.2em;
+        #gameContainer button {
+            margin-top: 20px;
+            padding: 12px 32px;
+            font-size: clamp(14px, 3vw, 22px);
             background: #00ff00;
             color: #000;
             border: none;
             cursor: pointer;
             font-weight: bold;
             border-radius: 5px;
-            transition: all 0.3s;
-        }
-
-        button:hover {
-            background: #00ffaa;
-            transform: scale(1.05);
-        }
-
-        .controls {
-            background: rgba(0, 255, 0, 0.1);
-            border: 2px solid #00ff00;
-            padding: 20px;
-            margin-top: 20px;
-            border-radius: 5px;
-            width: 800px;
-            font-size: 0.9em;
-        }
-
-        .controls-row {
-            display: flex;
-            justify-content: space-around;
-            margin: 10px 0;
-        }
-
-        .player-controls {
-            text-align: left;
         }
 
         .hidden { display: none !important; }
+
+        /* ── D-Pad + action buttons ── */
+        .ctrl-col {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            flex-shrink: 0;
+            width: clamp(90px, 16vw, 150px);
+            padding: 4px;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .ctrl-label {
+            font-size: clamp(10px, 2vw, 14px);
+            font-weight: bold;
+        }
+        .dpad {
+            display: grid;
+            grid-template-areas:
+                '.  up  .'
+                'lt .  rt'
+                '.  dn  .';
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 3px;
+            width: clamp(80px, 14vw, 130px);
+            height: clamp(80px, 14vw, 130px);
+        }
+        .dp { grid-area: up; }
+        .dd { grid-area: dn; }
+        .dl { grid-area: lt; }
+        .dr { grid-area: rt; }
+        .dpad-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            border-radius: 8px;
+            font-size: clamp(16px, 2.8vw, 26px);
+            font-weight: bold;
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+        .dpad-btn:active { filter: brightness(1.5); }
+        .action-row {
+            display: flex;
+            gap: 6px;
+        }
+        .act-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            border-radius: 10px;
+            width: clamp(38px, 7vw, 58px);
+            height: clamp(38px, 7vw, 58px);
+            font-size: clamp(12px, 2.2vw, 18px);
+            font-weight: bold;
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+        .act-btn:active { filter: brightness(1.5); }
+
+        /* P1 theme (green) */
+        .ctrl-col.p1 .ctrl-label { color: #00ff00; }
+        .ctrl-col.p1 .dpad-btn { background: rgba(0,255,0,0.18); color: #00ff00; border: 2px solid rgba(0,255,0,0.45); }
+        .ctrl-col.p1 .act-btn  { background: rgba(0,255,0,0.22); color: #00ff00; border: 2px solid rgba(0,255,0,0.5); }
+
+        /* P2 theme (magenta) */
+        .ctrl-col.p2 .ctrl-label { color: #ff00ff; }
+        .ctrl-col.p2 .dpad-btn { background: rgba(255,0,255,0.18); color: #ff00ff; border: 2px solid rgba(255,0,255,0.4); }
+        .ctrl-col.p2 .act-btn  { background: rgba(255,0,255,0.22); color: #ff00ff; border: 2px solid rgba(255,0,255,0.5); }
     </style>
 </head>
 <body>
-
-<h1>🎮 BATTLE CITY 🎮</h1>
 
 <div id="ui">
     <div id="uiP1">🟢 P1: <span id="p1Health">5</span> HP</div>
     <div id="uiBase">⚔️ BASE: <span id="baseHealth">10</span> HP</div>
     <div id="uiP2">🦋 P2: <span id="p2Health">5</span> HP</div>
-    <div style="color: #ffFF00;">Wave: <span id="waveDisplay">1</span></div>
+    <div style="color:#ffFF00;">Wave: <span id="waveDisplay">1</span></div>
 </div>
 
-<div id="gameContainer">
-    <canvas id="gameCanvas" width="800" height="800"></canvas>
-    
-    <div id="startScreen">
-        <h2>⚔️ BATTLE CITY ⚔️</h2>
-        <p style="color: #00ff00; font-size: 1.5em;">PROTECT YOUR BASE!</p>
-        <p>Player 1 (🟢 Green Tank) uses <strong>WASD</strong> to move, <strong>TAB</strong> to shoot, and <strong>SPACE</strong> for grenade!</p>
-        <p>Player 2 (🦋 Yellow Butterfly) uses <strong>ARROW KEYS</strong> to move, <strong>PAGE UP</strong> to shoot, and <strong>ENTER</strong> for grenade!</p>
-        <p style="color: #ffff00;">Destroy enemy tanks and protect the fortress! 🏰</p>
-        <p>🧱 Bricks can be destroyed | 🩶 Steel walls are indestructible</p>
-        <button onclick="startGame()">START GAME</button>
+<div id="gameWrapper">
+    <!-- P1 controls (left side) -->
+    <div class="ctrl-col p1">
+        <div class="ctrl-label">🟢 P1</div>
+        <div class="dpad">
+            <button class="dpad-btn dp" data-p="p1" data-k="w">▲</button>
+            <button class="dpad-btn dl" data-p="p1" data-k="a">◀</button>
+            <button class="dpad-btn dr" data-p="p1" data-k="d">▶</button>
+            <button class="dpad-btn dd" data-p="p1" data-k="s">▼</button>
+        </div>
+        <div class="action-row">
+            <button class="act-btn" data-p="p1" data-k="Tab">🔫</button>
+            <button class="act-btn" data-p="p1" data-k=" ">💣</button>
+        </div>
     </div>
 
-    <div id="gameOverScreen" class="hidden">
-        <h2 id="gameOverTitle">GAME OVER!</h2>
-        <p id="gameOverMsg"></p>
-        <p>P1 Health: <span id="finalP1Health">0</span>/5 | P2 Health: <span id="finalP2Health">0</span>/5</p>
-        <p>Enemies Defeated: <span id="enemiesDefeated">0</span></p>
-        <button onclick="startGame()">PLAY AGAIN</button>
-    </div>
-</div>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="800" height="800"></canvas>
 
-<div class="controls">
-    <div class="controls-row">
-        <div class="player-controls">
-            <strong style="color: #00ff00;">Player 1 (Green Tank)</strong><br>
-            Move: <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd><br>
-            Shoot: <kbd>TAB</kbd><br>
-            Grenade: <kbd>SPACE</kbd>
+        <div id="startScreen">
+            <h2>⚔️ BATTLE CITY ⚔️</h2>
+            <p style="color:#00ff00;">PROTECT YOUR BASE!</p>
+            <p>P1 (🟢) WASD + TAB/SPACE</p>
+            <p>P2 (🦋) Arrows + PGUP/ENTER</p>
+            <p style="color:#ffff00;">Use the on-screen buttons or keyboard!</p>
+            <button onclick="startGame()">START GAME</button>
         </div>
-        <div class="player-controls">
-            <strong style="color: #ff00ff;">Player 2 (Butterfly)</strong><br>
-            Move: <kbd>↑</kbd> <kbd>←</kbd> <kbd>↓</kbd> <kbd>→</kbd><br>
-            Shoot: <kbd>PGUP</kbd><br>
-            Grenade: <kbd>ENTER</kbd>
+
+        <div id="gameOverScreen" class="hidden">
+            <h2 id="gameOverTitle">GAME OVER!</h2>
+            <p id="gameOverMsg"></p>
+            <p>P1: <span id="finalP1Health">0</span>/5 | P2: <span id="finalP2Health">0</span>/5</p>
+            <p>Defeated: <span id="enemiesDefeated">0</span></p>
+            <button onclick="startGame()">PLAY AGAIN</button>
         </div>
-        <div class="player-controls">
-            <strong style="color: #ffff00;">Power-ups</strong><br>
-            ⭐ Shield Boost<br>
-            💥 Ammo Refill
+    </div>
+
+    <!-- P2 controls (right side) -->
+    <div class="ctrl-col p2">
+        <div class="ctrl-label">🦋 P2</div>
+        <div class="dpad">
+            <button class="dpad-btn dp" data-p="p2" data-k="ArrowUp">▲</button>
+            <button class="dpad-btn dl" data-p="p2" data-k="ArrowLeft">◀</button>
+            <button class="dpad-btn dr" data-p="p2" data-k="ArrowRight">▶</button>
+            <button class="dpad-btn dd" data-p="p2" data-k="ArrowDown">▼</button>
+        </div>
+        <div class="action-row">
+            <button class="act-btn" data-p="p2" data-k="PageUp">🔫</button>
+            <button class="act-btn" data-p="p2" data-k="Enter">💣</button>
         </div>
     </div>
 </div>
@@ -192,6 +241,39 @@ let wave = 1;
 let enemiesDefeated = 0;
 
 const TILE_SIZE = 40;
+
+// ── Responsive sizing ──
+function resizeGame() {
+    const ctrlW = Math.min(150, window.innerWidth * 0.16) + 8; // ctrl-col width
+    const availW = window.innerWidth - ctrlW * 2 - 12;
+    const availH = window.innerHeight - 4;
+    const side = Math.min(availW, availH);
+    const container = document.getElementById('gameContainer');
+    container.style.width  = side + 'px';
+    container.style.height = side + 'px';
+}
+window.addEventListener('resize', resizeGame);
+resizeGame();
+
+// ── On-screen button wiring ──
+(function wireButtons() {
+    let timers = new Map();
+    function stop(btn) { clearInterval(timers.get(btn)); timers.delete(btn); }
+
+    document.querySelectorAll('.dpad-btn, .act-btn').forEach(btn => {
+        const k = btn.dataset.k;
+        btn.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            keys[k] = true;
+            stop(btn);
+            timers.set(btn, setInterval(() => { keys[k] = true; }, 50));
+        });
+        function release() { keys[k] = false; stop(btn); }
+        btn.addEventListener('pointerup',     release);
+        btn.addEventListener('pointerleave',  release);
+        btn.addEventListener('pointercancel', release);
+    });
+})();
 
 // Players
 const players = {
@@ -395,40 +477,63 @@ function randomCardinalDirection() {
 function updatePlayer(player, moveKeys, shootKey, grenadeKey) {
     if (player.isDead) return;
 
+    // Save previous position for wall-collision rollback
+    const prevX = player.x;
+    const prevY = player.y;
+
     // Rotation and movement
-    let moved = false;
     if (keys[moveKeys.up]) {
         player.angle = -Math.PI / 2;
         player.y -= player.speed;
-        moved = true;
     }
     if (keys[moveKeys.down]) {
         player.angle = Math.PI / 2;
         player.y += player.speed;
-        moved = true;
     }
     if (keys[moveKeys.left]) {
         player.angle = Math.PI;
         player.x -= player.speed;
-        moved = true;
     }
     if (keys[moveKeys.right]) {
         player.angle = 0;
         player.x += player.speed;
-        moved = true;
     }
 
-    // Clamp to screen
+    // Clamp to game area
     player.x = Math.max(0, Math.min(player.x, GAME_WIDTH - player.width));
     player.y = Math.max(0, Math.min(player.y, GAME_HEIGHT - player.height));
 
-    // Wall collision
-    walls.forEach(wall => {
+    // Wall collision — revert the axis that collides
+    for (const wall of walls) {
         if (rectCollide(player, wall)) {
-            player.x = Math.max(0, Math.min(player.x, GAME_WIDTH - player.width));
-            player.y = Math.max(0, Math.min(player.y, GAME_HEIGHT - player.height));
+            // Try reverting only X
+            const tryX = prevX;
+            const testObjX = { x: tryX, y: player.y, width: player.width, height: player.height };
+            // Try reverting only Y
+            const tryY = prevY;
+            const testObjY = { x: player.x, y: tryY, width: player.width, height: player.height };
+
+            let xHits = false, yHits = false;
+            for (const w of walls) {
+                if (rectCollide(testObjX, w)) xHits = true;
+                if (rectCollide(testObjY, w)) yHits = true;
+            }
+
+            if (!xHits && !yHits) {
+                // Diagonal — revert whichever isn't needed
+                player.x = prevX;
+            } else if (!xHits) {
+                player.x = prevX;
+            } else if (!yHits) {
+                player.y = prevY;
+            } else {
+                // Both axes blocked — full revert
+                player.x = prevX;
+                player.y = prevY;
+            }
+            break;
         }
-    });
+    }
 
     // Shooting
     if (keys[shootKey]) {
