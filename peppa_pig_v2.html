@@ -55,7 +55,7 @@
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            padding: 6px 12px 8px;
+            padding: 6px 12px calc(8px + env(safe-area-inset-bottom, 0px));
             background: rgba(0,0,0,0.2);
             flex-shrink: 0;
             gap: 8px;
