@@ -38,6 +38,78 @@
         canvas { 
             display: block;
         }
+
+        /* ── D-Pad Controls ── */
+        .game-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100vw;
+            height: 100vh;
+        }
+        .dpad {
+            display: grid;
+            grid-template-areas:
+                '.  up  .'
+                'lt ct rt'
+                '.  dn  .';
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 4px;
+            width: clamp(100px, 18vw, 160px);
+            height: clamp(100px, 18vw, 160px);
+            flex-shrink: 0;
+            padding: 6px;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .dpad-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            border-radius: 10px;
+            font-size: clamp(18px, 3vw, 28px);
+            font-weight: bold;
+            cursor: pointer;
+            touch-action: manipulation;
+            transition: transform 0.08s, filter 0.08s;
+        }
+        .dpad-btn:active {
+            transform: scale(0.88);
+            filter: brightness(1.4);
+        }
+        .dpad-btn.up { grid-area: up; }
+        .dpad-btn.dn { grid-area: dn; }
+        .dpad-btn.lt { grid-area: lt; }
+        .dpad-btn.rt { grid-area: rt; }
+
+        /* P1 colours (pink) */
+        .dpad.p1 .dpad-btn {
+            background: rgba(255, 121, 198, 0.25);
+            color: #ff79c6;
+            border: 2px solid rgba(255, 121, 198, 0.5);
+        }
+        /* P2 colours (yellow) */
+        .dpad.p2 .dpad-btn {
+            background: rgba(241, 250, 140, 0.2);
+            color: #f1fa8c;
+            border: 2px solid rgba(241, 250, 140, 0.45);
+        }
+
+        .dpad-label {
+            text-align: center;
+            font-size: 13px;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .dpad-col {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
         #overlay { 
             position: fixed; 
             top: 0; 
@@ -51,7 +123,7 @@
             justify-content: center; 
             z-index: 100; 
         }
-        button { 
+        #overlay button { 
             padding: 20px 40px; 
             font-size: 24px; 
             background: #50fa7b; 
@@ -71,7 +143,31 @@
     <div class="score-card" style="color:#f1fa8c">🦋 Arrows / Right-Tap</div>
 </div>
 
-<canvas id="maze"></canvas>
+<div class="game-wrapper">
+    <!-- P1 D-Pad (left side) -->
+    <div class="dpad-col">
+        <div class="dpad-label" style="color:#ff79c6">🧱 P1</div>
+        <div class="dpad p1">
+            <button class="dpad-btn up" data-p="p1" data-dx="0" data-dy="-1">▲</button>
+            <button class="dpad-btn lt" data-p="p1" data-dx="-1" data-dy="0">◀</button>
+            <button class="dpad-btn rt" data-p="p1" data-dx="1" data-dy="0">▶</button>
+            <button class="dpad-btn dn" data-p="p1" data-dx="0" data-dy="1">▼</button>
+        </div>
+    </div>
+
+    <canvas id="maze"></canvas>
+
+    <!-- P2 D-Pad (right side) -->
+    <div class="dpad-col">
+        <div class="dpad-label" style="color:#f1fa8c">🦋 P2</div>
+        <div class="dpad p2">
+            <button class="dpad-btn up" data-p="p2" data-dx="0" data-dy="-1">▲</button>
+            <button class="dpad-btn lt" data-p="p2" data-dx="-1" data-dy="0">◀</button>
+            <button class="dpad-btn rt" data-p="p2" data-dx="1" data-dy="0">▶</button>
+            <button class="dpad-btn dn" data-p="p2" data-dx="0" data-dy="1">▼</button>
+        </div>
+    </div>
+</div>
 
 <div id="overlay">
     <h1 id="status">WINS!</h1>
@@ -130,10 +226,13 @@ function initGame() {
     p1.x = 1; p1.y = 1;
     p2.x = size - 2; p2.y = size - 2;
 
-    // Zoom to screen size
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    cellSize = Math.min(canvas.width, canvas.height) / size;
+    // Zoom to screen size, leaving room for d-pads on sides
+    const dpadWidth = Math.min(160, window.innerWidth * 0.18) + 12; // matches clamp + padding
+    const availW = window.innerWidth - dpadWidth * 2;
+    const availH = window.innerHeight;
+    canvas.width = availW;
+    canvas.height = availH;
+    cellSize = Math.min(availW, availH) / size;
 
     document.getElementById("lvl-card").innerText = `Level ${level}/5`;
     document.getElementById("overlay").style.display = "none";
@@ -194,6 +293,9 @@ function startNextLevel() {
 
 // Touch controls: Split screen into 8 zones (4 for P1, 4 for P2)
 window.addEventListener("pointerdown", (e) => {
+    // Ignore taps on D-pad buttons (handled separately)
+    if (e.target.closest('.dpad')) return;
+
     const x = e.clientX;
     const y = e.clientY;
     const halfW = window.innerWidth / 2;
@@ -232,6 +334,30 @@ window.addEventListener("keydown", (e) => {
 });
 
 window.addEventListener("resize", initGame);
+
+// ── D-Pad button wiring ──
+(function wireDpad() {
+    let repeatTimer = null;
+    function stopRepeat() { clearInterval(repeatTimer); repeatTimer = null; }
+
+    document.querySelectorAll('.dpad-btn').forEach(btn => {
+        function fire() {
+            const p  = btn.dataset.p;
+            const dx = parseInt(btn.dataset.dx, 10);
+            const dy = parseInt(btn.dataset.dy, 10);
+            move(p, dx, dy);
+        }
+        btn.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            fire();
+            stopRepeat();
+            repeatTimer = setInterval(fire, 120);
+        });
+        btn.addEventListener('pointerup',     stopRepeat);
+        btn.addEventListener('pointerleave',  stopRepeat);
+        btn.addEventListener('pointercancel', stopRepeat);
+    });
+})();
 
 function loop() {
     draw();
