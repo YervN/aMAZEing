@@ -60,8 +60,9 @@ canvas.height = window.innerHeight;
 // Game Constants
 const LAPS_TO_WIN = 4;
 const friction = 0.98;
-const trackInner = 120;
-const trackOuter = 280;
+const minDim = Math.min(canvas.width, canvas.height);
+const trackOuter = Math.round(minDim * 0.38); // 38% of smallest screen dimension keeps the track fully visible
+const trackInner = Math.round(minDim * 0.17); // 17% preserves the original ~43% inner/outer ratio for track width
 
 // Truck Objects
 function createTruck(id, color, yOffset) {
