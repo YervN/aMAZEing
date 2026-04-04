@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Peppa & George's Star Adventure</title>
     <style>
         body {
@@ -11,7 +11,7 @@
             background-color: #87CEEB;
             display: flex;
             justify-content: center;
-            align-items: center;
+            align-items: stretch;
             height: 100vh;
             font-family: 'Comic Sans MS', 'Arial', sans-serif;
             overflow: hidden;
@@ -19,20 +19,91 @@
         }
         #game-info {
             color: white;
-            font-size: 18px;
+            font-size: 14px;
             font-weight: bold;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-            margin-bottom: 10px;
+            padding: 4px 8px;
             text-align: center;
+            flex-shrink: 0;
         }
         #game-container {
-            position: relative;
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
         }
         canvas {
             background-color: #E0F7FA;
-            border: 6px solid #FFB6C1;
-            border-radius: 15px;
-            box-shadow: 0px 10px 30px rgba(0,0,0,0.3);
+            border: 4px solid #FFB6C1;
+            border-radius: 12px;
+            box-shadow: 0px 6px 20px rgba(0,0,0,0.3);
+            box-sizing: border-box;
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
+        }
+        /* Touch controls */
+        #controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 6px calc(12px + env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left));
+            background: rgba(0,0,0,0.2);
+            flex-shrink: 0;
+            gap: 8px;
+        }
+        .player-controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+        }
+        .player-label {
+            font-size: 11px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+            white-space: nowrap;
+        }
+        .p1-label { color: #FFB6C1; }
+        .p2-label { color: #9BBBF0; }
+        .dpad {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+        }
+        .dpad-row {
+            display: flex;
+            gap: 2px;
+        }
+        .dpad-btn {
+            width: 46px;
+            height: 46px;
+            border: none;
+            border-radius: 8px;
+            font-size: 20px;
+            background: rgba(255,255,255,0.85);
+            color: #333;
+            cursor: pointer;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+        }
+        .dpad-btn:active, .dpad-btn.pressed {
+            background: rgba(180,180,180,0.95);
+        }
+        .dpad-center {
+            background: transparent !important;
+            box-shadow: none !important;
+            pointer-events: none;
         }
     </style>
 </head>
@@ -43,6 +114,42 @@
     </div>
     <div id="game-container">
         <canvas id="gameCanvas" width="900" height="600"></canvas>
+    </div>
+
+    <!-- Touch controls -->
+    <div id="controls">
+        <div class="player-controls">
+            <div class="player-label p1-label">🐷 Peppa (P1)</div>
+            <div class="dpad">
+                <div class="dpad-row">
+                    <button class="dpad-btn" data-action="p1Up">▲</button>
+                </div>
+                <div class="dpad-row">
+                    <button class="dpad-btn" data-action="p1Left">◀</button>
+                    <div class="dpad-btn dpad-center"></div>
+                    <button class="dpad-btn" data-action="p1Right">▶</button>
+                </div>
+                <div class="dpad-row">
+                    <button class="dpad-btn" data-action="p1Down">▼</button>
+                </div>
+            </div>
+        </div>
+        <div class="player-controls">
+            <div class="player-label p2-label">🐽 George (P2)</div>
+            <div class="dpad">
+                <div class="dpad-row">
+                    <button class="dpad-btn" data-action="p2Up">▲</button>
+                </div>
+                <div class="dpad-row">
+                    <button class="dpad-btn" data-action="p2Left">◀</button>
+                    <div class="dpad-btn dpad-center"></div>
+                    <button class="dpad-btn" data-action="p2Right">▶</button>
+                </div>
+                <div class="dpad-row">
+                    <button class="dpad-btn" data-action="p2Down">▼</button>
+                </div>
+            </div>
+        </div>
     </div>
 
 
@@ -348,6 +455,51 @@
             if (e.code === "KeyW") keys.p2Up = false;
             if (e.code === "KeyS") keys.p2Down = false;
         });
+
+        // Touch controls
+        (function setupTouchControls() {
+            const press = {
+                p1Up:    () => { keys.p1Up    = true;  },
+                p1Down:  () => { keys.p1Down  = true;  },
+                p1Left:  () => { keys.p1Left  = true;  },
+                p1Right: () => { keys.p1Right = true;  },
+                p2Up:    () => { keys.p2Up    = true;  },
+                p2Down:  () => { keys.p2Down  = true;  },
+                p2Left:  () => { keys.p2Left  = true;  },
+                p2Right: () => { keys.p2Right = true;  }
+            };
+            const release = {
+                p1Up:    () => { keys.p1Up    = false; },
+                p1Down:  () => { keys.p1Down  = false; },
+                p1Left:  () => { keys.p1Left  = false; },
+                p1Right: () => { keys.p1Right = false; },
+                p2Up:    () => { keys.p2Up    = false; },
+                p2Down:  () => { keys.p2Down  = false; },
+                p2Left:  () => { keys.p2Left  = false; },
+                p2Right: () => { keys.p2Right = false; }
+            };
+            document.querySelectorAll('.dpad-btn[data-action]').forEach(btn => {
+                const action = btn.dataset.action;
+                btn.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    btn.classList.add('pressed');
+                    if (press[action]) press[action]();
+                }, { passive: false });
+                btn.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    btn.classList.remove('pressed');
+                    if (release[action]) release[action]();
+                }, { passive: false });
+                btn.addEventListener('touchcancel', () => {
+                    btn.classList.remove('pressed');
+                    if (release[action]) release[action]();
+                });
+                // Also support mouse for desktop testing
+                btn.addEventListener('mousedown', () => { btn.classList.add('pressed'); if (press[action]) press[action](); });
+                btn.addEventListener('mouseup',   () => { btn.classList.remove('pressed'); if (release[action]) release[action](); });
+                btn.addEventListener('mouseleave', () => { btn.classList.remove('pressed'); if (release[action]) release[action](); });
+            });
+        })();
 
         let animFrame = 0;
 
